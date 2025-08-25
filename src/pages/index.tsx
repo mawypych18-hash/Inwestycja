@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Building2, MapPin, Wind, Sparkles } from "lucide-react";
 
 // 🔧 Prosta flaga admina – lokalnie true, na serwerze false
-const ENABLE_ADMIN = false;
+const ENABLE_ADMIN = true;
 
 // ================== TYPY ==================
 type Unit = {
@@ -297,67 +298,55 @@ useEffect(() => {
         </div>
       </section>
 {/* === ATUTY INWESTYCJI (nowoczesne kafelki) === */}
-<section className="mx-auto max-w-7xl px-4 py-12">
-  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-    {/* 1. 4 kondygnacje */}
-    <div className="group relative overflow-hidden rounded-2xl border bg-white p-6 transition hover:-translate-y-0.5 hover:shadow-lg">
-      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-neutral-100 ring-1 ring-neutral-200">
-        {/* Ikona budynku (outline) */}
-        <svg viewBox="0 0 24 24" className="h-6 w-6 text-neutral-700" fill="none" stroke="currentColor" strokeWidth="1.6">
-          <rect x="3.5" y="3.5" width="9" height="17" rx="1.5"/>
-          <path d="M13 7h7M13 11h7M13 15h7M13 20V4a1 1 0 0 1 1-1h6.5"/>
-          <path d="M6.5 7h3M6.5 11h3M6.5 15h3M6 21h4"/>
-        </svg>
-      </div>
-      <h3 className="mt-4 text-lg font-semibold tracking-tight">Tylko 4 kondygnacje</h3>
-      <p className="mt-1 text-sm text-neutral-600">Kameralny charakter budynku i mniejszy ruch na klatkach.</p>
-      <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-[#D22121] to-transparent opacity-0 transition group-hover:opacity-100"/>
+{/* === ATUTY INWESTYCJI === */}
+<section className="mx-auto max-w-7xl px-4 py-16">
+  <h2 className="text-2xl font-bold text-center mb-10 text-neutral-800">
+    Atuty inwestycji
+  </h2>
+  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+    {/* Kafelek 1 */}
+    <div className="group relative overflow-hidden rounded-2xl border bg-white p-6 shadow-lg ring-1 ring-[#D22121]/20">
+      <Building2 className="h-10 w-10 text-[#D22121] mb-4" />
+      <h3 className="text-lg font-semibold mb-2">Jedynie 4 kondygnacje</h3>
+      <p className="text-sm text-neutral-600">
+        Kameralny budynek o niskiej zabudowie zapewnia prywatność i komfort mieszkańcom.
+      </p>
+      <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-[#D22121] to-transparent opacity-100" />
     </div>
 
-    {/* 2. Lokalizacja */}
-    <div className="group relative overflow-hidden rounded-2xl border bg-white p-6 transition hover:-translate-y-0.5 hover:shadow-lg">
-      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-neutral-100 ring-1 ring-neutral-200">
-        {/* Ikona pinezki */}
-        <svg viewBox="0 0 24 24" className="h-6 w-6 text-neutral-700" fill="none" stroke="currentColor" strokeWidth="1.6">
-          <path d="M12 22s7-6.4 7-12a7 7 0 1 0-14 0c0 5.6 7 12 7 12Z"/>
-          <circle cx="12" cy="10" r="2.5"/>
-        </svg>
-      </div>
-      <h3 className="mt-4 text-lg font-semibold tracking-tight">Atrakcyjna lokalizacja</h3>
-      <p className="mt-1 text-sm text-neutral-600">Blisko centrum i usług</p>
-      <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-[#D22121] to-transparent opacity-0 transition group-hover:opacity-100"/>
+    {/* Kafelek 2 */}
+    <div className="group relative overflow-hidden rounded-2xl border bg-white p-6 shadow-lg ring-1 ring-[#D22121]/20">
+      <MapPin className="h-10 w-10 text-[#D22121] mb-4" />
+      <h3 className="text-lg font-semibold mb-2">Atrakcyjna lokalizacja</h3>
+      <p className="text-sm text-neutral-600">
+        Blisko centrum, terenów zielonych i infrastruktury miejskiej – idealne połączenie.
+      </p>
+      <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-[#D22121] to-transparent opacity-100" />
     </div>
 
-    {/* 3. Klimatyzacja */}
-    <div className="group relative overflow-hidden rounded-2xl border bg-white p-6 transition hover:-translate-y-0.5 hover:shadow-lg">
-      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-neutral-100 ring-1 ring-neutral-200">
-        {/* Ikona AC / nawiew */}
-        <svg viewBox="0 0 24 24" className="h-6 w-6 text-neutral-700" fill="none" stroke="currentColor" strokeWidth="1.6">
-          <rect x="3" y="5" width="18" height="6" rx="2"/>
-          <path d="M6 15c0 0 2 0 3.5 0S13 16 13 17.5 11.5 20 10 20"/>
-          <path d="M14 15c0 0 2 0 3.5 0S21 16 21 17.5 19.5 20 18 20"/>
-        </svg>
-      </div>
-      <h3 className="mt-4 text-lg font-semibold tracking-tight">Przygotowane pod klimatyzację</h3>
-      <p className="mt-1 text-sm text-neutral-600">Instalacja pod montaż jednostek w każdym mieszkaniu.</p>
-      <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-[#D22121] to-transparent opacity-0 transition group-hover:opacity-100"/>
+    {/* Kafelek 3 */}
+    <div className="group relative overflow-hidden rounded-2xl border bg-white p-6 shadow-lg ring-1 ring-[#D22121]/20">
+      <Wind className="h-10 w-10 text-[#D22121] mb-4" />
+      <h3 className="text-lg font-semibold mb-2">Klimatyzacja w standardzie</h3>
+      <p className="text-sm text-neutral-600">
+        Mieszkania przygotowane pod montaż klimatyzacji dla Twojego komfortu przez cały rok.
+      </p>
+      <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-[#D22121] to-transparent opacity-100" />
     </div>
 
-    {/* 4. Garaż podziemny */}
-    <div className="group relative overflow-hidden rounded-2xl border bg-white p-6 transition hover:-translate-y-0.5 hover:shadow-lg">
-      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-neutral-100 ring-1 ring-neutral-200">
-        {/* Ikona miejsca parkingowego */}
-        <svg viewBox="0 0 24 24" className="h-6 w-6 text-neutral-700" fill="none" stroke="currentColor" strokeWidth="1.6">
-          <path d="M4 19V7a2 2 0 0 1 2-2h6.5A4.5 4.5 0 0 1 17 9.5 4.5 4.5 0 0 1 12.5 14H8v5"/>
-          <path d="M8 10h4.2a2.5 2.5 0 0 0 0-5H8v5Z"/>
-        </svg>
-      </div>
-      <h3 className="mt-4 text-lg font-semibold tracking-tight">Garaż podziemny</h3>
-      <p className="mt-1 text-sm text-neutral-600">Wygodne parkowanie i bezpieczne dojście do klatek.</p>
-      <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-[#D22121] to-transparent opacity-0 transition group-hover:opacity-100"/>
+    {/* Kafelek 4 */}
+    <div className="group relative overflow-hidden rounded-2xl border bg-white p-6 shadow-lg ring-1 ring-[#D22121]/20">
+      <Sparkles className="h-10 w-10 text-[#D22121] mb-4" />
+      <h3 className="text-lg font-semibold mb-2">Nowoczesna architektura</h3>
+      <p className="text-sm text-neutral-600">
+        Elegancki design i funkcjonalne układy mieszkań zaprojektowane z myślą o mieszkańcach.
+      </p>
+      <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-[#D22121] to-transparent opacity-100" />
     </div>
   </div>
 </section>
+
+
 <div className="h-px w-full my-12 bg-[linear-gradient(90deg,#0000,rgba(0,0,0,.12),#0000)]" />
 
       {/* === TREŚĆ === */}
@@ -643,7 +632,7 @@ function GarageBadge() {
         <div>
           <div className="text-sm text-neutral-500 mb-2">Kontakt</div>
           <h2 className="text-4xl font-semibold leading-tight">
-            Zapytaj <span className="text-[#D22121]">o apartament</span>
+            Zapytaj <span className="text-[#D22121]">o lokal</span>
           </h2>
           <p className="mt-4 text-neutral-600 max-w-lg">
             Zadzwoń, napisz albo odwiedź nas w biurze sprzedaży.
@@ -652,17 +641,17 @@ function GarageBadge() {
           <div className="mt-8 space-y-6 text-neutral-800">
             <div>
               <div className="text-[#D22121] font-medium">Biuro sprzedaży</div>
-              <div>ul. Jagiełły 10, Siedlce, Budynek Społem</div>
+              <div>ul. Jagiełły 10, Siedlce, Biurowiec Społem</div>
             </div>
             <div>
               <div className="text-[#D22121] font-medium">Godziny otwarcia</div>
               <div>Poniedziałek – Piątek: 7:00 – 15:00</div>
-              <div>Sobota: 10:00 – 15:00</div>
+              
             </div>
             <div>
               <div className="text-[#D22121] font-medium">Telefon</div>
-              <a href="tel:+48785100800" className="text-lg font-semibold hover:underline">
-                (+48) 785 100 800
+              <a href="tel:(025) 6327761" className="text-lg font-semibold hover:underline">
+                (025) 632 77 61
               </a>
             </div>
             <div>
@@ -682,7 +671,7 @@ function GarageBadge() {
             className="rounded-2xl shadow-md mb-6"
           />
           <a
-            href="tel:+48785100800"
+            href="tel:(025) 6327761"
             className="inline-flex items-center justify-center rounded-lg bg-[#D22121] px-6 py-3 text-white font-medium hover:bg-[#B51A1A]"
           >
             Zadzwoń teraz
