@@ -1,0 +1,17 @@
+# Node & Next
+node_modules/
+.next/
+out/
+.vercel/
+
+# Env / system
+.env
+.env.local
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
