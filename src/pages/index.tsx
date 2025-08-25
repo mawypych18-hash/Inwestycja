@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Building2, MapPin, Wind, Sparkles } from "lucide-react";
 
 // 🔧 Prosta flaga admina – lokalnie true, na serwerze false
-const ENABLE_ADMIN = true;
+const ENABLE_ADMIN = false;
 
 // ================== TYPY ==================
 type Unit = {
