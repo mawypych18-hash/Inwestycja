@@ -1,0 +1,11 @@
+{
+  "priceMap": {
+    "A201": 6,
+    "A308": 550000
+  },
+  "availMap": {
+    "GARAZ": false,
+    "A201": false,
+    "A307": false
+  }
+}

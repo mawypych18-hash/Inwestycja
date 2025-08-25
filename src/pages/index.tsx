@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 // 🔧 Prosta flaga admina – lokalnie true, na serwerze false
-const ENABLE_ADMIN = false;
+const ENABLE_ADMIN = true;
 
 // ================== TYPY ==================
 type Unit = {
@@ -204,35 +204,65 @@ export default function HomePage() {
     });
   }, [q, stair, floor, rooms, minArea, maxArea, onlyAvailable, maxPrice, priceMap, availMap]);
 
-  return (
+ return (
     <div className="min-h-screen bg-white">
       {/* === NAGŁÓWEK === */}
-      <header className="sticky top-0 z-30 border-b bg-white/80 backdrop-blur">
-        <div className="mx-auto max-w-7xl px-4 py-4 grid grid-cols-3 items-center">
-          <div></div>
-          <div className="flex justify-center">
-            <img src="/uploads/logo.svg" alt="Logo firmy" className="h-40 w-auto" />
-          </div>
-          
-          
-          <div className="flex justify-end items-center gap-2">
-            <input
-              className="border rounded-lg px-3 py-2 w-72"
-              placeholder="Szukaj (np. 3.B.24)"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
-            {ENABLE_ADMIN && (
-              <button
-                onClick={() => setEditMode((s) => !s)}
-                className={`rounded-lg px-3 py-2 border ${editMode ? "bg-black text-white" : "bg-white"}`}
-              >
-                {editMode ? "Zakończ edycję" : "Edytuj ceny i dostępność"}
-              </button>
-            )}
-          </div>
-        </div>
-      </header>
+      {/* === NAGŁÓWEK (logo na środku, akcje po prawej) === */}
+<header className="sticky top-0 z-30 border-b bg-white/75 backdrop-blur bg-[linear-gradient(180deg,rgba(255,255,255,.9)_0%,rgba(255,255,255,.6)_100%)]">
+  <div className="mx-auto max-w-7xl px-4 py-4 grid grid-cols-3 items-center">
+    {/* lewa kolumna pusta dla wyśrodkowania logo */}
+    <div />
+
+    {/* środek – logo (SVG) */}
+    <div className="flex justify-center">
+      <img src="/uploads/logo.svg" alt="Logo firmy" className="h-40 w-auto" />
+    </div>
+
+    {/* prawa – search + (adminowe) przyciski */}
+    <div className="flex justify-end items-center gap-2">
+      <input
+        className="border rounded-full px-4 py-2 w-72 text-sm bg-white/80"
+        placeholder="Szukaj (np. 3.B.24)"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+      />
+
+      {ENABLE_ADMIN && (
+        <>
+          <button
+            onClick={() => setEditMode((s) => !s)}
+            className={`rounded-full px-4 py-2 text-sm border transition ${
+              editMode ? "bg-black text-white" : "bg-white hover:bg-neutral-50"
+            }`}
+            title="Tryb edycji cen i dostępności"
+          >
+            {editMode ? "Zakończ edycję" : "Edytuj ceny"}
+          </button>
+
+          {/* Eksport nadpisań (JSON) */}
+          <button
+            onClick={() => {
+              const data = { priceMap, availMap };
+              const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = "overrides.json";
+              document.body.appendChild(a);
+              a.click();
+              a.remove();
+              URL.revokeObjectURL(url);
+            }}
+            className="rounded-full px-4 py-2 text-sm border bg-white hover:bg-neutral-50"
+            title="Zapisz aktualne ceny i dostępność do pliku JSON"
+          >
+            Eksportuj JSON
+          </button>
+        </>
+      )}
+    </div>
+  </div>
+</header>
 
       {/* === HERO === */}
       <section className="mx-auto max-w-7xl px-4 py-6">
