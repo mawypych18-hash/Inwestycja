@@ -173,6 +173,17 @@ export default function HomePage() {
   useEffect(() => {
     localStorage.setItem("availMap", JSON.stringify(availMap));
   }, [availMap]);
+// ⬇️ Ładowanie public/data/overrides.json (działa lokalnie i na produkcji)
+useEffect(() => {
+  fetch("/data/overrides.json", { cache: "no-store" })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((o) => {
+      if (!o) return;
+      if (o.priceMap) setPriceMap((m) => ({ ...m, ...o.priceMap }));
+      if (o.availMap) setAvailMap((m) => ({ ...m, ...o.availMap }));
+    })
+    .catch(() => {});
+}, []);
 
   const setAvailability = (id: string, v: boolean) => setAvailMap((m) => ({ ...m, [id]: v }));
   const setPrice = (id: string, v: string) => {
