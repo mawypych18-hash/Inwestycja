@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 // 🔧 Prosta flaga admina – lokalnie true, na serwerze false
-const ENABLE_ADMIN = true;
+const ENABLE_ADMIN = false;
 
 // ================== TYPY ==================
 type Unit = {
