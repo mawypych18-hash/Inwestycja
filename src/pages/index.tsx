@@ -2,26 +2,33 @@ import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Building2, MapPin, Wind, Sparkles } from "lucide-react";
 
-// 🔧 Prosta flaga admina – lokalnie true, na serwerze false
+/** Włącznik trybu admina (edycja cen/dostępności + eksport JSON). 
+ *  Na produkcję ustaw false. Na potrzeby edycji lokalnej – true.
+ */
 const ENABLE_ADMIN = false;
 
-// ================== TYPY ==================
+/** ===== Typy ===== */
 type Unit = {
   id: string;
-  floor: number;
-  number: string;
-  rooms: number | null;
+  floor: number;          // może być nieidealne – filtrowanie i tak idzie po dfFromUnit
+  number: string;         // np. "3.B.24" albo "Parter – rzut kondygnacji"
+  rooms: number | null;   // null => rzut kondygnacji (garaż/parter)
   area: number | null;
   price: number | null;
   isAvailable: boolean;
   hasBalcony: boolean;
   orientation: string;
-  planUrl: string;
+  planUrl: string;        // "/uploads/NAZWA.pdf"
 };
 
-// ================== DANE ==================
+/** ====== TUTAJ WKLEJASZ SWOJE UNITS ======
+ *  pozostawiam pustą tablicę – wstaw swoje rekordy 1:1
+ */
 const UNITS: Unit[] = [
-  {
+   
+  { id: "PARTER_PLAN", floor: 2, number: "Parter – rzut kondygnacji", rooms: null, area: null, price: null, isAvailable: true, hasBalcony: false, orientation: "", planUrl: "/uploads/parter.pdf" },
+  // { id: "A201", floor: 3, number: "2.A.1", rooms: 2, area: 50.57, price: null, isAvailable: true, hasBalcony: true, orientation: "", planUrl: "/uploads/2.A.1.pdf" },
+{
     id: "GARAZ",
     floor: 1,
     number: "Garaż podziemny",
@@ -123,17 +130,15 @@ const UNITS: Unit[] = [
   { id: "D475", floor: 4, number: "4.D.75", rooms: 2, area: 46.67, price: null, isAvailable: true, hasBalcony: true, orientation: "", planUrl: "/uploads/4.D.75.pdf" },
   { id: "D476", floor: 4, number: "4.D.76", rooms: 4, area: 69.05, price: null, isAvailable: true, hasBalcony: true, orientation: "", planUrl: "/uploads/4.D.76.pdf" },
 ];
-  // ... 🔽 reszta mieszkań tak jak masz w poprzednim pliku 🔽
 
-
-// ================== SLIDER ==================
+/** ===== Slider ===== */
 const HERO_IMAGES = [
   "/uploads/Siedlce_Inicjatywa_uj02b.jpg",
   "/uploads/Siedlce_Inicjatywa_uj02vbezdrzew_001.jpg",
   "/uploads/Siedlce_Inicjatywa_uj01b.jpg",
 ];
 
-// ================== POMOCNICZE ==================
+/** ===== Utils ===== */
 const formatPrice = (n: number | null) =>
   n == null ? "—" : n.toLocaleString("pl-PL", { maximumFractionDigits: 0 }) + " zł";
 
@@ -142,14 +147,63 @@ const getStaircase = (unitNumber: string) => {
   return m ? m[1] : "";
 };
 
-const displayFloor = (f: number) => f - 1;
-const TOTAL_DISPLAY_FLOORS = Math.max(...UNITS.map((u) => displayFloor(u.floor))) || 3;
+// Etykieta dla wyliczonego df
+const floorLabel = (df: number) =>
+  df === 0 ? "Garaż" : df === 1 ? "Parter" : `Piętro ${df - 1}`;
 
-// ================== STRONA ==================
+// Klasy dla chipów w filtrze
+const chipClasses = (active: boolean) =>
+  "px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-neutral-50 " +
+  (active ? "ring-2 ring-[#D22121]/40 border-[#D22121]/40 font-medium" : "");
+
+/** === Wylicz „display floor” (df) po numerze lokalu / nazwie pliku ===
+ *  Zamiast polegać na floor-1, jedziemy po regule:
+ *  - Garaż: rooms === null i numer zawiera „garaż” albo planUrl kończy się na /garaz.pdf → df=0
+ *  - Parter: rooms === null i numer zawiera „parter” albo planUrl kończy się na /parter.pdf → df=1
+ *  - Mieszkania: prefiks numeru:
+ *      2.* → df=2 (Piętro 1)
+ *      3.* → df=3 (Piętro 2)
+ *      4.* → df=4 (Piętro 3)
+ *      (1.* → df=0, gdyby kiedyś były oznaczenia garażu w numeracji)
+ *  - Fallback: (floor ?? 3) - 1
+ */
+function dfFromUnit(u: Unit): number {
+  // Garaż
+  if (
+    u.rooms === null &&
+    (/garaż/i.test(u.number) || /\/garaz\.pdf$/i.test(u.planUrl))
+  ) {
+    return 0;
+  }
+
+  // Parter
+  if (
+    u.rooms === null &&
+    (/parter/i.test(u.number) || /\/parter\.pdf$/i.test(u.planUrl))
+  ) {
+    return 1;
+  }
+
+  // Mieszkania po prefiksie numeru
+  const m = (u.number || "").match(/^(\d)\./);
+  if (m) {
+    const n = parseInt(m[1], 10);
+    if (n === 2) return 2; // Piętro 1
+    if (n === 3) return 3; // Piętro 2
+    if (n === 4) return 4; // Piętro 3
+    if (n === 1) return 0; // garaż (gdyby występowało)
+  }
+
+  // Fallback – gdyby brakowało wzorca, spróbuj ze starego "floor"
+  return Math.max(0, (u.floor ?? 3) - 1);
+}
+
+/** ===== Strona ===== */
 export default function HomePage() {
   const [q, setQ] = useState("");
   const [stair, setStair] = useState<"" | "A" | "B" | "C" | "D">("");
-  const [floor, setFloor] = useState<number | "">("");
+  // "G"=garaż, "P"=parter, number=2/3/4 (piętra), ""=brak
+  const [floorState, setFloorState] = useState<"" | "G" | "P" | number>("");
   const [rooms, setRooms] = useState<number | "">("");
   const [minArea, setMinArea] = useState<number>(25);
   const [maxArea, setMaxArea] = useState<number>(120);
@@ -161,7 +215,10 @@ export default function HomePage() {
   const [availMap, setAvailMap] = useState<Record<string, boolean | null>>({});
 
   const [slide, setSlide] = useState(0);
+  const [touched, setTouched] = useState(false);
+  const requireSelection = !touched && stair === "" && floorState === "" && q.trim() === "";
 
+  // localStorage
   useEffect(() => {
     const saved = localStorage.getItem("priceMap");
     if (saved) setPriceMap(JSON.parse(saved));
@@ -174,107 +231,120 @@ export default function HomePage() {
   useEffect(() => {
     localStorage.setItem("availMap", JSON.stringify(availMap));
   }, [availMap]);
-// ⬇️ Ładowanie public/data/overrides.json (działa lokalnie i na produkcji)
-useEffect(() => {
-  fetch("/data/overrides.json", { cache: "no-store" })
-    .then((r) => (r.ok ? r.json() : null))
-    .then((o) => {
-      if (!o) return;
-      if (o.priceMap) setPriceMap((m) => ({ ...m, ...o.priceMap }));
-      if (o.availMap) setAvailMap((m) => ({ ...m, ...o.availMap }));
-    })
-    .catch(() => {});
-}, []);
 
-  const setAvailability = (id: string, v: boolean) => setAvailMap((m) => ({ ...m, [id]: v }));
-  const setPrice = (id: string, v: string) => {
-    const num = v === "" ? null : Math.max(0, Math.round(Number(v)));
+  // wczytaj overrides.json jeśli jest (dla produkcji)
+  useEffect(() => {
+    fetch("/data/overrides.json", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((o) => {
+        if (!o) return;
+        if (o.priceMap) setPriceMap((m) => ({ ...m, ...o.priceMap }));
+        if (o.availMap) setAvailMap((m) => ({ ...m, ...o.availMap }));
+      })
+      .catch(() => {});
+  }, []);
+
+  // edycja ceny/dostępności
+  const setUnitPrice = (id: string, v: string) => {
+    const num = v === "" ? null : Math.max(0, Math.round(Number(v.replace(/\s/g, ""))));
     setPriceMap((m) => ({ ...m, [id]: num }));
   };
+  const setAvailability = (id: string, v: boolean) =>
+    setAvailMap((m) => ({ ...m, [id]: v }));
 
-  const floors = useMemo(
-    () => Array.from(new Set(UNITS.map((u) => displayFloor(u.floor)))).sort((a, b) => a - b),
-    []
-  );
-
+  /** ===== Filtr ===== */
   const filtered = useMemo(() => {
     return UNITS.filter((u) => {
-      const df = displayFloor(u.floor);
-      const effectiveAvailable = (availMap[u.id] ?? u.isAvailable);
+      const df = dfFromUnit(u);
+      const effectiveAvailable = availMap[u.id] ?? u.isAvailable;
 
+      // tekst
       if (q && !u.number.toLowerCase().includes(q.toLowerCase())) return false;
-      if (stair && df !== 0 && getStaircase(u.number) !== stair) return false;
-      if (floor !== "" && df !== floor) return false;
-      if (rooms !== "" && df !== 0 && u.rooms !== rooms) return false;
-      if (u.area != null && df !== 0 && (u.area < minArea || u.area > maxArea)) return false;
+
+      // === SPEC: Garaż => wyłącznie rzut garażu (df===0)
+      if (floorState === "G") {
+        if (df !== 0) return false;
+        return true;
+      }
+
+      // === SPEC: Parter => wyłącznie rzut parteru (df===1)
+      if (floorState === "P") {
+        if (df !== 1) return false;
+        return true;
+      }
+
+      // Piętra 1/2/3 – df 2/3/4
+      if (typeof floorState === "number") {
+        if (df !== floorState) return false;
+      }
+
+      // Dodatkowe filtry obowiązują dla mieszkań (df>=2)
+      if (df >= 2) {
+        if (stair && getStaircase(u.number) !== stair) return false;
+        if (rooms !== "" && u.rooms !== rooms) return false;
+        if (u.area != null && (u.area < minArea || u.area > maxArea)) return false;
+      }
+
       if (onlyAvailable && !effectiveAvailable) return false;
 
       const price = priceMap[u.id] ?? u.price;
-      if (maxPrice !== "" && price != null && price > maxPrice) return false;
+      if (!editMode && maxPrice !== "" && price != null && price > maxPrice) return false;
 
       return true;
     });
-  }, [q, stair, floor, rooms, minArea, maxArea, onlyAvailable, maxPrice, priceMap, availMap]);
+  }, [q, stair, floorState, rooms, minArea, maxArea, onlyAvailable, maxPrice, priceMap, availMap, editMode]);
 
- return (
+  return (
     <div className="min-h-screen bg-white">
       {/* === NAGŁÓWEK === */}
-      {/* === NAGŁÓWEK (logo na środku, akcje po prawej) === */}
-<header className="sticky top-0 z-30 border-b bg-white/75 backdrop-blur bg-[linear-gradient(180deg,rgba(255,255,255,.9)_0%,rgba(255,255,255,.6)_100%)]">
-  <div className="mx-auto max-w-7xl px-4 py-4 grid grid-cols-3 items-center">
-    {/* lewa kolumna pusta dla wyśrodkowania logo */}
-    <div />
-
-    {/* środek – logo (SVG) */}
-    <div className="flex justify-center">
-      <img src="/uploads/logo.svg" alt="Logo firmy" className="h-40 w-auto" />
-    </div>
-
-    {/* prawa – search + (adminowe) przyciski */}
-    <div className="flex justify-end items-center gap-2">
-      <input
-        className="border rounded-full px-4 py-2 w-72 text-sm bg-white/80"
-        placeholder="Szukaj (np. 3.B.24)"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-      />
-
-      {ENABLE_ADMIN && (
-        <>
-          <button
-            onClick={() => setEditMode((s) => !s)}
-            className={`rounded-full px-4 py-2 text-sm border transition ${
-              editMode ? "bg-black text-white" : "bg-white hover:bg-neutral-50"
-            }`}
-            title="Tryb edycji cen i dostępności"
-          >
-            {editMode ? "Zakończ edycję" : "Edytuj ceny"}
-          </button>
-
-          {/* Eksport nadpisań (JSON) */}
-          <button
-            onClick={() => {
-              const data = { priceMap, availMap };
-              const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement("a");
-              a.href = url;
-              a.download = "overrides.json";
-              document.body.appendChild(a);
-              a.click();
-              a.remove();
-              URL.revokeObjectURL(url);
-            }}
-            className="rounded-full px-4 py-2 text-sm border bg-white hover:bg-neutral-50"
-            title="Zapisz aktualne ceny i dostępność do pliku JSON"
-          >
-            Eksportuj JSON
-          </button>
-        </>
-      )}
-    </div>
-  </div>
-</header>
+      <header className="sticky top-0 z-30 border-b bg-white/75 backdrop-blur bg-[linear-gradient(180deg,rgba(255,255,255,.9)_0%,rgba(255,255,255,.6)_100%)]">
+        <div className="mx-auto max-w-7xl px-4 py-4 grid grid-cols-3 items-center">
+          <div />
+          <div className="flex justify-center">
+            <img src="/uploads/logo.svg" alt="Logo firmy" className="h-40 w-auto" />
+          </div>
+          <div className="flex justify-end items-center gap-2">
+            <input
+              className="border rounded-full px-4 py-2 w-72 text-sm bg-white/80"
+              placeholder="Szukaj (np. 3.B.24)"
+              value={q}
+              onChange={(e) => {
+                setQ(e.target.value);
+                setTouched(true);
+              }}
+            />
+            {ENABLE_ADMIN && (
+              <>
+                <button
+                  onClick={() => setEditMode((s) => !s)}
+                  className={`rounded-full px-4 py-2 text-sm border transition ${editMode ? "bg-black text-white" : "bg-white hover:bg-neutral-50"}`}
+                  title="Tryb edycji cen i dostępności"
+                >
+                  {editMode ? "Zakończ edycję" : "Edytuj ceny"}
+                </button>
+                <button
+                  onClick={() => {
+                    const data = { priceMap, availMap };
+                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = "overrides.json";
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    URL.revokeObjectURL(url);
+                  }}
+                  className="rounded-full px-4 py-2 text-sm border bg-white hover:bg-neutral-50"
+                  title="Zapisz aktualne ceny i dostępność do pliku JSON"
+                >
+                  Eksportuj JSON
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </header>
 
       {/* === HERO === */}
       <section className="mx-auto max-w-7xl px-4 py-6">
@@ -291,305 +361,333 @@ useEffect(() => {
               alt="Wizualizacja"
             />
           </AnimatePresence>
-          <button onClick={() => setSlide((s) => (s - 1 + HERO_IMAGES.length) % HERO_IMAGES.length)}
-            className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/90 rounded-full p-2 border">‹</button>
-          <button onClick={() => setSlide((s) => (s + 1) % HERO_IMAGES.length)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/90 rounded-full p-2 border">›</button>
+          <button
+            onClick={() => setSlide((s) => (s - 1 + HERO_IMAGES.length) % HERO_IMAGES.length)}
+            className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/90 rounded-full p-2 border"
+          >
+            ‹
+          </button>
+          <button
+            onClick={() => setSlide((s) => (s + 1) % HERO_IMAGES.length)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/90 rounded-full p-2 border"
+          >
+            ›
+          </button>
         </div>
       </section>
-{/* === ATUTY INWESTYCJI (nowoczesne kafelki) === */}
-{/* === ATUTY INWESTYCJI === */}
-<section className="mx-auto max-w-7xl px-4 py-16">
-  <h2 className="text-2xl font-bold text-center mb-10 text-neutral-800">
-    Atuty inwestycji
-  </h2>
-  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-    {/* Kafelek 1 */}
-    <div className="group relative overflow-hidden rounded-2xl border bg-white p-6 shadow-lg ring-1 ring-[#D22121]/20">
-      <Building2 className="h-10 w-10 text-[#D22121] mb-4" />
-      <h3 className="text-lg font-semibold mb-2">Jedynie 4 kondygnacje</h3>
-      <p className="text-sm text-neutral-600">
-        Kameralny budynek o niskiej zabudowie zapewnia prywatność i komfort mieszkańcom.
-      </p>
-      <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-[#D22121] to-transparent opacity-100" />
-    </div>
 
-    {/* Kafelek 2 */}
-    <div className="group relative overflow-hidden rounded-2xl border bg-white p-6 shadow-lg ring-1 ring-[#D22121]/20">
-      <MapPin className="h-10 w-10 text-[#D22121] mb-4" />
-      <h3 className="text-lg font-semibold mb-2">Atrakcyjna lokalizacja</h3>
-      <p className="text-sm text-neutral-600">
-        Blisko centrum, terenów zielonych i infrastruktury miejskiej – idealne połączenie.
-      </p>
-      <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-[#D22121] to-transparent opacity-100" />
-    </div>
-
-    {/* Kafelek 3 */}
-    <div className="group relative overflow-hidden rounded-2xl border bg-white p-6 shadow-lg ring-1 ring-[#D22121]/20">
-      <Wind className="h-10 w-10 text-[#D22121] mb-4" />
-      <h3 className="text-lg font-semibold mb-2">Klimatyzacja w standardzie</h3>
-      <p className="text-sm text-neutral-600">
-        Mieszkania przygotowane pod montaż klimatyzacji dla Twojego komfortu przez cały rok.
-      </p>
-      <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-[#D22121] to-transparent opacity-100" />
-    </div>
-
-    {/* Kafelek 4 */}
-    <div className="group relative overflow-hidden rounded-2xl border bg-white p-6 shadow-lg ring-1 ring-[#D22121]/20">
-      <Sparkles className="h-10 w-10 text-[#D22121] mb-4" />
-      <h3 className="text-lg font-semibold mb-2">Nowoczesna architektura</h3>
-      <p className="text-sm text-neutral-600">
-        Elegancki design i funkcjonalne układy mieszkań zaprojektowane z myślą o mieszkańcach.
-      </p>
-      <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-[#D22121] to-transparent opacity-100" />
-    </div>
-  </div>
-</section>
-
-
-<div className="h-px w-full my-12 bg-[linear-gradient(90deg,#0000,rgba(0,0,0,.12),#0000)]" />
-
-      {/* === TREŚĆ === */}
-      <main className="mx-auto max-w-7xl px-4 pb-12 grid grid-cols-12 gap-6">
-        {/* FILTRY */}
-        <aside className="col-span-12 md:col-span-5 lg:col-span-4">
-  <div className="rounded-2xl border p-4 sticky top-[180px] bg-white">
-    <div className="font-semibold mb-3">Filtry</div>
-
-    {/* Klatka */}
-    <label className="block text-sm mb-2">
-      Klatka
-      <div className="mt-1 flex gap-2 flex-wrap">
-        {(["", "A", "B", "C", "D"] as const).map((k) => (
-          <button
-            key={k || "all"}
-            onClick={() => setStair(k)}
-            className={`px-3 py-1 rounded-lg border ${stair === k ? "bg-black text-white" : "bg-white"}`}
-          >
-            {k || "Wszystkie"}
-          </button>
-        ))}
-      </div>
-    </label>
-
-    {/* Piętro (z Garażem) */}
-    <label className="block text-sm mb-2 mt-3">
-      Piętro
-      <div className="mt-1 flex gap-2 flex-nowrap overflow-x-auto pb-1">
-        <button
-          onClick={() => setFloor("")}
-          className={`px-3 py-1 rounded-lg border ${floor === "" ? "bg-black text-white" : "bg-white"}`}
-        >
-          Wszystkie
-        </button>
-        {floors.map((f) => (
-          <button
-            key={f}
-            onClick={() => setFloor(f)}
-            className={`px-3 py-1 rounded-lg border ${floor === f ? "bg-black text-white" : "bg-white"}`}
-          >
-            {f === 0 ? "Garaż" : f}
-          </button>
-        ))}
-      </div>
-    </label>
-
-    {/* Pokoje */}
-    <label className="block text-sm mb-2 mt-3">
-      Pokoje
-      <div className="mt-1 flex gap-2 flex-wrap">
-        {(["", 1, 2, 3, 4] as const).map((r) => (
-          <button
-            key={r || "all"}
-            onClick={() => setRooms(r as any)}
-            className={`px-3 py-1 rounded-lg border ${rooms === r ? "bg-black text-white" : "bg-white"}`}
-          >
-            {r === "" ? "Wszystkie" : r}
-          </button>
-        ))}
-      </div>
-    </label>
-
-    {/* Metraż */}
-    <div className="grid grid-cols-2 gap-2 mt-3">
-      <label className="block text-sm">
-        Min m²
-        <input
-          type="number"
-          className="mt-1 w-full border rounded-lg px-2 py-1"
-          value={minArea}
-          onChange={(e) => setMinArea(Number(e.target.value || 0))}
-          disabled={floor === 0} // wyłącz dla Garażu
-        />
-      </label>
-      <label className="block text-sm">
-        Max m²
-        <input
-          type="number"
-          className="mt-1 w-full border rounded-lg px-2 py-1"
-          value={maxArea}
-          onChange={(e) => setMaxArea(Number(e.target.value || 0))}
-          disabled={floor === 0} // wyłącz dla Garażu
-        />
-      </label>
-    </div>
-
-    {/* Cena maks. */}
-    <label className="block text-sm mt-3">
-      Cena maks.
-      <input
-        type="number"
-        className="mt-1 w-full border rounded-lg px-2 py-1"
-        placeholder="bez limitu"
-        value={maxPrice === "" ? "" : String(maxPrice)}
-        onChange={(e) => setMaxPrice(e.target.value === "" ? "" : Math.max(0, Math.round(Number(e.target.value))))}
-      />
-    </label>
-
-    {/* Tylko dostępne */}
-    <label className="mt-3 flex items-center gap-2 text-sm">
-      <input
-        type="checkbox"
-        checked={onlyAvailable}
-        onChange={(e) => setOnlyAvailable(e.target.checked)}
-      />
-      Tylko dostępne
-    </label>
-
-    {/* Wyczyść */}
-    <button
-      onClick={() => {
-        setQ("");
-        setStair("");
-        setFloor("");
-        setRooms("");
-        setMinArea(25);
-        setMaxArea(120);
-        setMaxPrice("");
-        setOnlyAvailable(false);
-      }}
-      className="mt-4 w-full rounded-lg border px-3 py-2"
-    >
-      Wyczyść filtry
-    </button>
-  </div>
-</aside>
-
-
-        {/* LISTA */}
-        <section className="col-span-12 md:col-span-7 lg:col-span-8">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="text-sm text-neutral-600">Wyników: <b>{filtered.length}</b></div>
-            {ENABLE_ADMIN && editMode && (
-              <>
-                <button onClick={() => { /* zaznaczone dostępne */ }} className="ml-3 text-xs px-2 py-1 rounded border hover:bg-neutral-50">Zaznaczone → dostępne</button>
-                <button onClick={() => { /* zaznaczone zarezerw. */ }} className="text-xs px-2 py-1 rounded border hover:bg-neutral-50">Zaznaczone → zarezerwowane</button>
-              </>
-            )}
+      {/* === ATUTY === */}
+      <section className="mx-auto max-w-7xl px-4 py-16">
+        <h2 className="text-2xl font-bold text-center mb-10 text-neutral-800">Atuty inwestycji</h2>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <div className="group relative overflow-hidden rounded-2xl border bg-white p-6 shadow-lg ring-1 ring-[#D22121]/20">
+            <Building2 className="h-10 w-10 text-[#D22121] mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Jedynie 4 kondygnacje</h3>
+            <p className="text-sm text-neutral-600">Kameralny budynek o niskiej zabudowie zapewnia prywatność i komfort mieszkańcom.</p>
+            <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-[#D22121] to-transparent opacity-100" />
           </div>
-
-          <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
-  {filtered.map((u) => {
-    const jpg = u.planUrl?.replace("/uploads/", "/thumbnails/").replace(/\.pdf$/i, ".jpg");
-    const stair = getStaircase(u.number);
-    const price = priceMap[u.id] ?? u.price ?? null;
-    const dispFloor = displayFloor(u.floor);
-    const effectiveAvailable = availMap[u.id] ?? u.isAvailable;
-
-    return (
-      <div
-        key={u.id}
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") window.open(u.planUrl, "_blank");
-        }}
-        className="group rounded-2xl border overflow-hidden bg-white transition
-                   hover:-translate-y-0.5 hover:shadow-lg hover:ring-1 hover:ring-[#D22121] hover:border-[#D22121]/40
-                   focus-within:shadow-lg focus-within:ring-1 focus-within:ring-[#D22121]"
-      >
-        {/* Miniatura */}
-        <div className="relative aspect-video bg-neutral-100 overflow-hidden">
-          <img
-            src={jpg}
-            alt={`Miniatura ${u.number}`}
-            className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-105"
-            onError={(e) => {
-              (e.currentTarget as HTMLImageElement).src =
-                "https://dummyimage.com/900x600/eeeeee/222&text=Brak+miniatury";
-            }}
-          />
-          <div className="absolute bottom-2 left-2 right-2 flex justify-between items-center">
-            {dispFloor === 0 ? (
-              <GarageBadge />
-            ) : (
-              <FloorBadge floor={dispFloor} total={TOTAL_DISPLAY_FLOORS} />
-            )}
-            <button
-              onClick={() => window.open(u.planUrl, "_blank")}
-              title="Otwórz plan w PDF"
-              className="text-xs px-2 py-1 rounded bg-white/90 backdrop-blur border hover:bg-white"
-            >
-              Otwórz PDF
-            </button>
+          <div className="group relative overflow-hidden rounded-2xl border bg-white p-6 shadow-lg ring-1 ring-[#D22121]/20">
+            <MapPin className="h-10 w-10 text-[#D22121] mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Atrakcyjna lokalizacja</h3>
+            <p className="text-sm text-neutral-600">Blisko centrum, terenów zielonych i infrastruktury miejskiej – idealne połączenie.</p>
+            <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-[#D22121] to-transparent opacity-100" />
+          </div>
+          <div className="group relative overflow-hidden rounded-2xl border bg-white p-6 shadow-lg ring-1 ring-[#D22121]/20">
+            <Wind className="h-10 w-10 text-[#D22121] mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Klimatyzacja w standardzie</h3>
+            <p className="text-sm text-neutral-600">Mieszkania przygotowane pod montaż klimatyzacji dla Twojego komfortu przez cały rok.</p>
+            <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-[#D22121] to-transparent opacity-100" />
+          </div>
+          <div className="group relative overflow-hidden rounded-2xl border bg-white p-6 shadow-lg ring-1 ring-[#D22121]/20">
+            <Sparkles className="h-10 w-10 text-[#D22121] mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Nowoczesna architektura</h3>
+            <p className="text-sm text-neutral-600">Elegancki design i funkcjonalne układy mieszkań zaprojektowane z myślą o mieszkańcach.</p>
+            <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-[#D22121] to-transparent opacity-100" />
           </div>
         </div>
+      </section>
 
-        {/* Treść */}
-        <div className="p-3">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <div className="font-semibold">{u.number}</div>
-              <div className="text-xs text-neutral-600">
-                {dispFloor === 0 ? (
-                  "Garaż podziemny"
-                ) : (
-                  <>
-                    Klatka {stair || "?"} • Piętro {dispFloor} • {u.rooms ?? "—"} pok. • {u.area ?? "—"} m²
-                  </>
-                )}
-              </div>
+      <div className="h-px w-full my-12 bg-[linear-gradient(90deg,#0000,rgba(0,0,0,.12),#0000)]" />
+
+      {/* === FILTRY + LISTA === */}
+      <main className="mx-auto max-w-7xl px-4 pb-12">
+        {/* PANEL FILTRÓW */}
+        <section className="relative rounded-2xl border overflow-hidden bg-[radial-gradient(1200px_600px_at_50%_-20%,#fef2f2,#ffffff)]">
+          <div className="px-6 py-8 md:px-10 md:py-10">
+            <h2 className="text-2xl md:text-3xl font-semibold tracking-tight text-center">
+              Wybierz <span className="text-[#D22121]">mieszkanie</span>
+            </h2>
+            {requireSelection && (
+              <p className="mt-2 text-neutral-600 text-center">
+                Zacznij od wyboru klatki lub piętra – pokażemy tylko pasujące lokale.
+              </p>
+            )}
+
+            {/* Klatki */}
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+              {(["A","B","C","D"] as const).map(k => (
+                <button
+                  key={k}
+                  onClick={() => { setStair(k); setTouched(true); }}
+                  className={chipClasses(stair === k)}
+                  aria-pressed={stair === k}
+                >
+                  Klatka {k}
+                </button>
+              ))}
+              <button
+                onClick={() => { setStair(""); setTouched(true); }}
+                className={chipClasses(stair === "")}
+                aria-pressed={stair === ""}
+              >
+                Wszystkie klatki
+              </button>
             </div>
-            <div className="text-right">
-              {!ENABLE_ADMIN || !editMode ? (
-                <div className="text-base font-semibold">{formatPrice(price)}</div>
-              ) : (
+
+            {/* Garaż + Parter + Piętra */}
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+              <button
+                onClick={() => { setFloorState("G"); setTouched(true); }}
+                className={chipClasses(floorState === "G")}
+                aria-pressed={floorState === "G"}
+              >
+                Garaż
+              </button>
+              <button
+                onClick={() => { setFloorState("P"); setTouched(true); }}
+                className={chipClasses(floorState === "P")}
+                aria-pressed={floorState === "P"}
+              >
+                Parter
+              </button>
+              {[2,3,4].map((df) => (
+                <button
+                  key={df}
+                  onClick={() => { setFloorState(df); setTouched(true); }}
+                  className={chipClasses(floorState === df)}
+                  aria-pressed={floorState === df}
+                >
+                  {floorLabel(df)}
+                </button>
+              ))}
+              <button
+                onClick={() => { setFloorState(""); setTouched(true); }}
+                className={chipClasses(floorState === "")}
+                aria-pressed={floorState === ""}
+              >
+                Wszystkie piętra
+              </button>
+            </div>
+
+            {/* Pokoje */}
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+              {(["", 1, 2, 3, 4] as const).map((r) => (
+                <button
+                  key={r === "" ? "all" : r}
+                  onClick={() => { setRooms(r as any); setTouched(true); }}
+                  className={chipClasses(rooms === r)}
+                  aria-pressed={rooms === r}
+                >
+                  {r === "" ? "Wszystkie pokoje" : `${r} pokoje`}
+                </button>
+              ))}
+            </div>
+
+            {/* Dodatkowe szybkie filtry */}
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-sm">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={onlyAvailable}
+                  onChange={(e) => { setOnlyAvailable(e.target.checked); setTouched(true); }}
+                />
+                Tylko dostępne
+              </label>
+
+              <div className="flex items-center gap-1">
+                <span>Max m²:</span>
                 <input
                   type="number"
-                  className="w-28 border rounded-lg px-2 py-1 text-right"
-                  value={price == null ? "" : String(price)}
-                  onChange={(e) => setPrice(u.id, e.target.value)}
+                  className="w-24 border rounded px-2 py-1"
+                  value={maxArea}
+                  onChange={(e) => { setMaxArea(Number(e.target.value || 0)); setTouched(true); }}
                 />
-              )}
-            </div>
-          </div>
+              </div>
 
-          {/* Status dostępności */}
-          <div className="mt-2 text-xs">
-            <span
-              className={`inline-block px-2 py-1 rounded border ${
-                effectiveAvailable
-                  ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                  : "bg-rose-50 border-rose-200 text-rose-700"
-              }`}
-            >
-              {effectiveAvailable ? "Dostępne" : "Zarezerwowane"}
-            </span>
-            {ENABLE_ADMIN && editMode && (
+              <div className="flex items-center gap-1">
+                <span>Cena maks.:</span>
+                <input
+                  type="number"
+                  className="w-28 border rounded px-2 py-1"
+                  placeholder="bez limitu"
+                  value={maxPrice === "" ? "" : String(maxPrice)}
+                  onChange={(e) => { setMaxPrice(e.target.value === "" ? "" : Math.max(0, Math.round(Number(e.target.value)))); setTouched(true); }}
+                />
+              </div>
+
               <button
-                onClick={() => setAvailability(u.id, !effectiveAvailable)}
-                className="inline-block ml-2 text-xs px-2 py-1 rounded border hover:bg-neutral-50"
+                onClick={() => {
+                  setQ("");
+                  setStair("");
+                  setFloorState("");
+                  setRooms("");
+                  setMinArea(25);
+                  setMaxArea(120);
+                  setMaxPrice("");
+                  setOnlyAvailable(false);
+                  setTouched(true);
+                }}
+                className="px-3 py-1.5 rounded-full border bg-white hover:bg-neutral-50"
               >
-                {effectiveAvailable ? "Oznacz jako zarezerw." : "Oznacz jako dostępne"}
+                Pokaż wszystkie
               </button>
+
+              <button
+                onClick={() => {
+                  setQ("");
+                  setStair("");
+                  setFloorState("");
+                  setRooms("");
+                  setMinArea(25);
+                  setMaxArea(120);
+                  setMaxPrice("");
+                  setOnlyAvailable(false);
+                  setTouched(false);
+                }}
+                className="px-3 py-1.5 rounded-full border bg-white hover:bg-neutral-50"
+              >
+                Wyczyść wszystko
+              </button>
+            </div>
+
+            {!requireSelection && (
+              <div className="mt-3 text-center text-sm text-neutral-600">
+                Wyników: <b>{filtered.length}</b>
+              </div>
             )}
           </div>
-        </div>
-      </div>
-    );
-  })}
-</div>
-</section>
+        </section>
 
+        {/* LISTA KART */}
+        <section className="mt-6">
+          {requireSelection ? (
+            <div className="text-center text-neutral-500 py-8">
+              Wybierz klatkę lub piętro powyżej, aby zobaczyć mieszkania.
+            </div>
+          ) : (
+            <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
+              {filtered.map((u) => {
+                const jpg = u.planUrl?.replace("/uploads/", "/thumbnails/").replace(/\.pdf$/i, ".jpg");
+                const stair = getStaircase(u.number);
+                const df = dfFromUnit(u);
+                const price = priceMap[u.id] ?? u.price ?? null;
+                const effectiveAvailable = availMap[u.id] ?? u.isAvailable;
+
+                const isGaragePlan = df === 0; // bo dfFromUnit już to rozpoznał
+                const isParterPlan = df === 1;
+
+                return (
+                  <div
+                    key={u.id}
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === "Enter") window.open(u.planUrl, "_blank"); }}
+                    className="group rounded-2xl border overflow-hidden bg-white transition
+                               hover:-translate-y-0.5 hover:shadow-lg hover:ring-1 hover:ring-[#D22121] hover:border-[#D22121]/40
+                               focus-within:shadow-lg focus-within:ring-1 focus-within:ring-[#D22121]"
+                  >
+                    {/* Miniatura */}
+                    <div className="relative aspect-video bg-neutral-100 overflow-hidden">
+                      <img
+                        src={jpg}
+                        alt={`Miniatura ${u.number}`}
+                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-105"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).src =
+                            "https://dummyimage.com/900x600/eeeeee/222&text=Brak+miniatury";
+                        }}
+                      />
+                      <div className="absolute bottom-2 left-2 right-2 flex justify-between items-center">
+                        {isGaragePlan ? (
+                          <GarageBadge />
+                        ) : (
+                          <FloorBadge floor={df} total={4} />
+                        )}
+                        <button
+                          onClick={() => window.open(u.planUrl, "_blank")}
+                          title="Otwórz plan w PDF"
+                          className="text-xs px-2 py-1 rounded bg-white/90 backdrop-blur border hover:bg-white"
+                        >
+                          Otwórz PDF
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Treść */}
+                    <div className="p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="font-semibold">{u.number}</div>
+                          <div className="text-xs text-neutral-600">
+                            {isGaragePlan ? (
+                              "Garaż – rzut kondygnacji"
+                            ) : isParterPlan ? (
+                              "Parter – rzut kondygnacji"
+                            ) : (
+                              <>
+                                Klatka {stair || "?"} • {floorLabel(df)} •{" "}
+                                {u.rooms ?? "—"} pok. • {u.area ?? "—"} m²
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          {!ENABLE_ADMIN || !editMode ? (
+                            <div className="text-base font-semibold">{formatPrice(price)}</div>
+                          ) : (
+                            <input
+                              type="number"
+                              inputMode="numeric"
+                              min={0}
+                              step={1}
+                              className="w-28 border rounded-lg px-2 py-1 text-right tabular-nums"
+                              value={price == null ? "" : String(price)}
+                              onChange={(e) => setUnitPrice(u.id, e.target.value)}
+                              onWheel={(e) => (e.currentTarget as HTMLInputElement).blur()}
+                              onKeyDown={(e) => e.stopPropagation()}
+                            />
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Status – ukryty dla rzutów kondygnacji */}
+                      {!isParterPlan && !isGaragePlan && (
+                        <div className="mt-2 text-xs">
+                          <span
+                            className={`inline-block px-2 py-1 rounded border ${
+                              effectiveAvailable
+                                ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                                : "bg-rose-50 border-rose-200 text-rose-700"
+                            }`}
+                          >
+                            {effectiveAvailable ? "Dostępne" : "Zarezerwowane"}
+                          </span>
+                          {ENABLE_ADMIN && editMode && (
+                            <button
+                              onClick={() => setAvailability(u.id, !effectiveAvailable)}
+                              className="inline-block ml-2 text-xs px-2 py-1 rounded border hover:bg-neutral-50"
+                            >
+                              {effectiveAvailable ? "Oznacz jako zarezerw." : "Oznacz jako dostępne"}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
       </main>
 
       <ContactSimple />
@@ -601,8 +699,8 @@ useEffect(() => {
   );
 }
 
-// ================== KOMPONENTY ==================
-function FloorBadge({ floor, total = 3 }: { floor: number; total?: number }) {
+/** ===== Badge pięter / garażu ===== */
+function FloorBadge({ floor, total = 4 }: { floor: number; total?: number }) {
   return (
     <div className="flex items-center gap-2">
       <div className="grid gap-0.5" style={{ gridTemplateRows: `repeat(${total}, minmax(0, 1fr))`, gridAutoFlow: "row" }}>
@@ -610,11 +708,10 @@ function FloorBadge({ floor, total = 3 }: { floor: number; total?: number }) {
           <div key={f} className={`h-2.5 w-6 rounded ${f === floor ? "bg-black" : "bg-neutral-300"}`} />
         ))}
       </div>
-      <span className="text-xs text-neutral-700">Piętro {floor}</span>
+      <span className="text-xs text-neutral-700">{floorLabel(floor)}</span>
     </div>
   );
 }
-
 function GarageBadge() {
   return (
     <div className="flex items-center gap-2">
@@ -624,7 +721,8 @@ function GarageBadge() {
   );
 }
 
-  function ContactSimple() {
+/** ===== Sekcja kontakt ===== */
+function ContactSimple() {
   return (
     <section id="contact-section" className="border-t bg-white">
       <div className="mx-auto max-w-7xl px-4 py-12 grid grid-cols-1 lg:grid-cols-2 gap-10">
@@ -646,7 +744,6 @@ function GarageBadge() {
             <div>
               <div className="text-[#D22121] font-medium">Godziny otwarcia</div>
               <div>Poniedziałek – Piątek: 7:00 – 15:00</div>
-              
             </div>
             <div>
               <div className="text-[#D22121] font-medium">Telefon</div>
@@ -665,15 +762,8 @@ function GarageBadge() {
 
         {/* prawa kolumna – obrazek + CTA */}
         <div className="flex flex-col items-center justify-center">
-          <img
-            src="/uploads/Siedlce_Inicjatywa_uj01b.jpg"
-            alt="Budynek"
-            className="rounded-2xl shadow-md mb-6"
-          />
-          <a
-            href="tel:(025) 6327761"
-            className="inline-flex items-center justify-center rounded-lg bg-[#D22121] px-6 py-3 text-white font-medium hover:bg-[#B51A1A]"
-          >
+          <img src="/uploads/Siedlce_Inicjatywa_uj01b.jpg" alt="Budynek" className="rounded-2xl shadow-md mb-6" />
+          <a href="tel:(025) 6327761" className="inline-flex items-center justify-center rounded-lg bg-[#D22121] px-6 py-3 text-white font-medium hover:bg-[#B51A1A]">
             Zadzwoń teraz
           </a>
         </div>
