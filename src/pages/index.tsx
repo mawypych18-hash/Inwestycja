@@ -2,15 +2,15 @@ import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Building2, MapPin, Wind, Sparkles } from "lucide-react";
 
-/** Włącznik trybu admina (edycja cen/dostępności + eksport JSON). 
- *  Na produkcję ustaw false. Na potrzeby edycji lokalnej – true.
+/** Ustaw na true lokalnie, aby edytować ceny/statusy i eksportować overrides.json.
+ *  Na produkcję daj false.
  */
-const ENABLE_ADMIN = false;
+const ENABLE_ADMIN = true;
 
 /** ===== Typy ===== */
 type Unit = {
   id: string;
-  floor: number;          // może być nieidealne – filtrowanie i tak idzie po dfFromUnit
+  floor: number;          // nie musi być idealne – filtr i tak używa dfFromUnit
   number: string;         // np. "3.B.24" albo "Parter – rzut kondygnacji"
   rooms: number | null;   // null => rzut kondygnacji (garaż/parter)
   area: number | null;
@@ -21,12 +21,12 @@ type Unit = {
   planUrl: string;        // "/uploads/NAZWA.pdf"
 };
 
-/** ====== TUTAJ WKLEJASZ SWOJE UNITS ======
- *  pozostawiam pustą tablicę – wstaw swoje rekordy 1:1
- */
+/** ====== TUTAJ WKLEJASZ SWOJE UNITS ====== */
 const UNITS: Unit[] = [
-   
-  { id: "PARTER_PLAN", floor: 2, number: "Parter – rzut kondygnacji", rooms: null, area: null, price: null, isAvailable: true, hasBalcony: false, orientation: "", planUrl: "/uploads/parter.pdf" },
+  // przykład wzorca rzutów:
+  // { id: "GARAZ_PLAN",  floor: 1, number: "Garaż – rzut kondygnacji", rooms: null, area: null, price: null, isAvailable: true, hasBalcony: false, orientation: "", planUrl: "/uploads/garaz.pdf" },
+  // { id: "PARTER_PLAN", floor: 2, number: "Parter – rzut kondygnacji", rooms: null, area: null, price: null, isAvailable: true, hasBalcony: false, orientation: "", planUrl: "/uploads/parter.pdf" },
+  // mieszkania:
   // { id: "A201", floor: 3, number: "2.A.1", rooms: 2, area: 50.57, price: null, isAvailable: true, hasBalcony: true, orientation: "", planUrl: "/uploads/2.A.1.pdf" },
 {
     id: "GARAZ",
@@ -129,7 +129,9 @@ const UNITS: Unit[] = [
   { id: "D474", floor: 4, number: "4.D.74", rooms: 3, area: 58.59, price: null, isAvailable: true, hasBalcony: true, orientation: "", planUrl: "/uploads/4.D.74.pdf" },
   { id: "D475", floor: 4, number: "4.D.75", rooms: 2, area: 46.67, price: null, isAvailable: true, hasBalcony: true, orientation: "", planUrl: "/uploads/4.D.75.pdf" },
   { id: "D476", floor: 4, number: "4.D.76", rooms: 4, area: 69.05, price: null, isAvailable: true, hasBalcony: true, orientation: "", planUrl: "/uploads/4.D.76.pdf" },
+
 ];
+
 /** ===== Slider ===== */
 const HERO_IMAGES = [
   "/uploads/Siedlce_Inicjatywa_uj02b.jpg",
@@ -146,26 +148,14 @@ const getStaircase = (unitNumber: string) => {
   return m ? m[1] : "";
 };
 
-// Etykieta dla wyliczonego df
 const floorLabel = (df: number) =>
   df === 0 ? "Garaż" : df === 1 ? "Parter" : `Piętro ${df - 1}`;
 
-// Klasy dla chipów w filtrze
 const chipClasses = (active: boolean) =>
   "px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-neutral-50 " +
   (active ? "ring-2 ring-[#D22121]/40 border-[#D22121]/40 font-medium" : "");
 
-/** === Wylicz „display floor” (df) po numerze lokalu / nazwie pliku ===
- *  Zamiast polegać na floor-1, jedziemy po regule:
- *  - Garaż: rooms === null i numer zawiera „garaż” albo planUrl kończy się na /garaz.pdf → df=0
- *  - Parter: rooms === null i numer zawiera „parter” albo planUrl kończy się na /parter.pdf → df=1
- *  - Mieszkania: prefiks numeru:
- *      2.* → df=2 (Piętro 1)
- *      3.* → df=3 (Piętro 2)
- *      4.* → df=4 (Piętro 3)
- *      (1.* → df=0, gdyby kiedyś były oznaczenia garażu w numeracji)
- *  - Fallback: (floor ?? 3) - 1
- */
+/** Mapowanie na „display floor” po numerze lokalu/ścieżce pliku. */
 function dfFromUnit(u: Unit): number {
   // Garaż
   if (
@@ -174,7 +164,6 @@ function dfFromUnit(u: Unit): number {
   ) {
     return 0;
   }
-
   // Parter
   if (
     u.rooms === null &&
@@ -182,7 +171,6 @@ function dfFromUnit(u: Unit): number {
   ) {
     return 1;
   }
-
   // Mieszkania po prefiksie numeru
   const m = (u.number || "").match(/^(\d)\./);
   if (m) {
@@ -190,10 +178,9 @@ function dfFromUnit(u: Unit): number {
     if (n === 2) return 2; // Piętro 1
     if (n === 3) return 3; // Piętro 2
     if (n === 4) return 4; // Piętro 3
-    if (n === 1) return 0; // garaż (gdyby występowało)
+    if (n === 1) return 0; // garaż (gdyby numeracja 1.* istniała)
   }
-
-  // Fallback – gdyby brakowało wzorca, spróbuj ze starego "floor"
+  // Fallback – floor-1
   return Math.max(0, (u.floor ?? 3) - 1);
 }
 
@@ -212,6 +199,7 @@ export default function HomePage() {
   const [editMode, setEditMode] = useState(false);
   const [priceMap, setPriceMap] = useState<Record<string, number | null>>({});
   const [availMap, setAvailMap] = useState<Record<string, boolean | null>>({});
+  const [statusMap, setStatusMap] = useState<Record<string, "available" | "reserved" | "sold">>({});
 
   const [slide, setSlide] = useState(0);
   const [touched, setTouched] = useState(false);
@@ -219,10 +207,12 @@ export default function HomePage() {
 
   // localStorage
   useEffect(() => {
-    const saved = localStorage.getItem("priceMap");
-    if (saved) setPriceMap(JSON.parse(saved));
-    const savedAvail = localStorage.getItem("availMap");
-    if (savedAvail) setAvailMap(JSON.parse(savedAvail));
+    const savedP = localStorage.getItem("priceMap");
+    if (savedP) setPriceMap(JSON.parse(savedP));
+    const savedA = localStorage.getItem("availMap");
+    if (savedA) setAvailMap(JSON.parse(savedA));
+    const savedS = localStorage.getItem("statusMap");
+    if (savedS) setStatusMap(JSON.parse(savedS));
   }, []);
   useEffect(() => {
     localStorage.setItem("priceMap", JSON.stringify(priceMap));
@@ -230,8 +220,11 @@ export default function HomePage() {
   useEffect(() => {
     localStorage.setItem("availMap", JSON.stringify(availMap));
   }, [availMap]);
+  useEffect(() => {
+    localStorage.setItem("statusMap", JSON.stringify(statusMap));
+  }, [statusMap]);
 
-  // wczytaj overrides.json jeśli jest (dla produkcji)
+  // wczytaj overrides.json (produkcyjny nadpis)
   useEffect(() => {
     fetch("/data/overrides.json", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
@@ -239,59 +232,55 @@ export default function HomePage() {
         if (!o) return;
         if (o.priceMap) setPriceMap((m) => ({ ...m, ...o.priceMap }));
         if (o.availMap) setAvailMap((m) => ({ ...m, ...o.availMap }));
+        if (o.statusMap) setStatusMap((m) => ({ ...m, ...o.statusMap }));
       })
       .catch(() => {});
   }, []);
 
-  // edycja ceny/dostępności
   const setUnitPrice = (id: string, v: string) => {
     const num = v === "" ? null : Math.max(0, Math.round(Number(v.replace(/\s/g, ""))));
     setPriceMap((m) => ({ ...m, [id]: num }));
   };
-  const setAvailability = (id: string, v: boolean) =>
-    setAvailMap((m) => ({ ...m, [id]: v }));
+
+  /** Spójny odczyt statusu z kompatybilnością wstecz (availMap). */
+  function getStatusFor(u: Unit): "available" | "reserved" | "sold" {
+    const s = statusMap[u.id];
+    if (s) return s;
+    const effAvail = (availMap[u.id] ?? u.isAvailable) ?? true;
+    return effAvail ? "available" : "reserved";
+  }
 
   /** ===== Filtr ===== */
   const filtered = useMemo(() => {
     return UNITS.filter((u) => {
       const df = dfFromUnit(u);
-      const effectiveAvailable = availMap[u.id] ?? u.isAvailable;
+      const status = getStatusFor(u);
 
-      // tekst
+      // wyszukiwarka po numerze
       if (q && !u.number.toLowerCase().includes(q.toLowerCase())) return false;
 
-      // === SPEC: Garaż => wyłącznie rzut garażu (df===0)
-      if (floorState === "G") {
-        if (df !== 0) return false;
-        return true;
-      }
+      // Garaż / Parter / Piętra
+      if (floorState === "G" && df !== 0) return false;
+      if (floorState === "P" && df !== 1) return false;
+      if (typeof floorState === "number" && df !== floorState) return false;
 
-      // === SPEC: Parter => wyłącznie rzut parteru (df===1)
-      if (floorState === "P") {
-        if (df !== 1) return false;
-        return true;
-      }
-
-      // Piętra 1/2/3 – df 2/3/4
-      if (typeof floorState === "number") {
-        if (df !== floorState) return false;
-      }
-
-      // Dodatkowe filtry obowiązują dla mieszkań (df>=2)
+      // Od 1. piętra w górę – zwykłe filtry
       if (df >= 2) {
         if (stair && getStaircase(u.number) !== stair) return false;
         if (rooms !== "" && u.rooms !== rooms) return false;
         if (u.area != null && (u.area < minArea || u.area > maxArea)) return false;
       }
 
-      if (onlyAvailable && !effectiveAvailable) return false;
+      // Tylko dostępne
+      if (onlyAvailable && status !== "available") return false;
 
+      // Cena maks (po nadpisaniu priceMap)
       const price = priceMap[u.id] ?? u.price;
       if (!editMode && maxPrice !== "" && price != null && price > maxPrice) return false;
 
       return true;
     });
-  }, [q, stair, floorState, rooms, minArea, maxArea, onlyAvailable, maxPrice, priceMap, availMap, editMode]);
+  }, [q, stair, floorState, rooms, minArea, maxArea, onlyAvailable, maxPrice, priceMap, statusMap, availMap, editMode]);
 
   return (
     <div className="min-h-screen bg-white">
@@ -317,13 +306,13 @@ export default function HomePage() {
                 <button
                   onClick={() => setEditMode((s) => !s)}
                   className={`rounded-full px-4 py-2 text-sm border transition ${editMode ? "bg-black text-white" : "bg-white hover:bg-neutral-50"}`}
-                  title="Tryb edycji cen i dostępności"
+                  title="Tryb edycji cen/statusów"
                 >
-                  {editMode ? "Zakończ edycję" : "Edytuj ceny"}
+                  {editMode ? "Zakończ edycję" : "Edytuj"}
                 </button>
                 <button
                   onClick={() => {
-                    const data = { priceMap, availMap };
+                    const data = { priceMap, availMap, statusMap };
                     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement("a");
@@ -335,7 +324,7 @@ export default function HomePage() {
                     URL.revokeObjectURL(url);
                   }}
                   className="rounded-full px-4 py-2 text-sm border bg-white hover:bg-neutral-50"
-                  title="Zapisz aktualne ceny i dostępność do pliku JSON"
+                  title="Zapisz aktualne ceny/statusy do pliku JSON"
                 >
                   Eksportuj JSON
                 </button>
@@ -577,22 +566,24 @@ export default function HomePage() {
             <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
               {filtered.map((u) => {
                 const jpg = u.planUrl?.replace("/uploads/", "/thumbnails/").replace(/\.pdf$/i, ".jpg");
-                const stair = getStaircase(u.number);
+                const stairName = getStaircase(u.number);
                 const df = dfFromUnit(u);
                 const price = priceMap[u.id] ?? u.price ?? null;
-                const effectiveAvailable = availMap[u.id] ?? u.isAvailable;
-
-                const isGaragePlan = df === 0; // bo dfFromUnit już to rozpoznał
+                const status = getStatusFor(u);
+                const isGaragePlan = df === 0;
                 const isParterPlan = df === 1;
+                const isSold = status === "sold";
 
                 return (
                   <div
                     key={u.id}
                     tabIndex={0}
                     onKeyDown={(e) => { if (e.key === "Enter") window.open(u.planUrl, "_blank"); }}
-                    className="group rounded-2xl border overflow-hidden bg-white transition
-                               hover:-translate-y-0.5 hover:shadow-lg hover:ring-1 hover:ring-[#D22121] hover:border-[#D22121]/40
-                               focus-within:shadow-lg focus-within:ring-1 focus-within:ring-[#D22121]"
+                    className={"group rounded-2xl border overflow-hidden bg-white transition " +
+                      "hover:-translate-y-0.5 hover:shadow-lg hover:ring-1 hover:ring-[#D22121] hover:border-[#D22121]/40 " +
+                      "focus-within:shadow-lg focus-within:ring-1 focus-within:ring-[#D22121] " +
+                      (isSold ? "opacity-60 grayscale" : "")
+                    }
                   >
                     {/* Miniatura */}
                     <div className="relative aspect-video bg-neutral-100 overflow-hidden">
@@ -632,10 +623,7 @@ export default function HomePage() {
                             ) : isParterPlan ? (
                               "Parter – rzut kondygnacji"
                             ) : (
-                              <>
-                                Klatka {stair || "?"} • {floorLabel(df)} •{" "}
-                                {u.rooms ?? "—"} pok. • {u.area ?? "—"} m²
-                              </>
+                              <>Klatka {stairName || "?"} • {floorLabel(df)} • {u.rooms ?? "—"} pok. • {u.area ?? "—"} m²</>
                             )}
                           </div>
                         </div>
@@ -661,22 +649,46 @@ export default function HomePage() {
                       {/* Status – ukryty dla rzutów kondygnacji */}
                       {!isParterPlan && !isGaragePlan && (
                         <div className="mt-2 text-xs">
-                          <span
-                            className={`inline-block px-2 py-1 rounded border ${
-                              effectiveAvailable
-                                ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                                : "bg-rose-50 border-rose-200 text-rose-700"
-                            }`}
-                          >
-                            {effectiveAvailable ? "Dostępne" : "Zarezerwowane"}
-                          </span>
+                          {status === "available" && (
+                            <span className="inline-block px-2 py-1 rounded border bg-emerald-50 border-emerald-200 text-emerald-700">
+                              Dostępne
+                            </span>
+                          )}
+                          {status === "reserved" && (
+                            <span className="inline-block px-2 py-1 rounded border bg-amber-50 border-amber-200 text-amber-700">
+                              Zarezerwowane
+                            </span>
+                          )}
+                          {status === "sold" && (
+                            <span className="inline-block px-2 py-1 rounded border bg-neutral-100 border-neutral-300 text-neutral-700">
+                              Sprzedane
+                            </span>
+                          )}
+
                           {ENABLE_ADMIN && editMode && (
-                            <button
-                              onClick={() => setAvailability(u.id, !effectiveAvailable)}
-                              className="inline-block ml-2 text-xs px-2 py-1 rounded border hover:bg-neutral-50"
-                            >
-                              {effectiveAvailable ? "Oznacz jako zarezerw." : "Oznacz jako dostępne"}
-                            </button>
+                            <span className="inline-flex gap-1 ml-2 align-middle">
+                              <button
+                                onClick={() => setStatusMap((m) => ({ ...m, [u.id]: "available" }))}
+                                className="px-2 py-1 text-xs rounded border hover:bg-neutral-50"
+                                title="Oznacz jako dostępne"
+                              >
+                                Dostępne
+                              </button>
+                              <button
+                                onClick={() => setStatusMap((m) => ({ ...m, [u.id]: "reserved" }))}
+                                className="px-2 py-1 text-xs rounded border hover:bg-neutral-50"
+                                title="Oznacz jako zarezerwowane"
+                              >
+                                Zarezerw.
+                              </button>
+                              <button
+                                onClick={() => setStatusMap((m) => ({ ...m, [u.id]: "sold" }))}
+                                className="px-2 py-1 text-xs rounded border hover:bg-neutral-50"
+                                title="Oznacz jako sprzedane"
+                              >
+                                Sprzedane
+                              </button>
+                            </span>
                           )}
                         </div>
                       )}

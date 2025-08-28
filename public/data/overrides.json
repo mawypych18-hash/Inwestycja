@@ -5,7 +5,39 @@
     "A202": 5555555,
     "A201": 55555,
     "A409": 888890,
-    "A410": 97777
+    "A410": 97777,
+    "A308": null
   },
-  "availMap": {}
+  "availMap": {},
+  "statusMap": {
+    "A410": "sold",
+    "A308": "sold",
+    "A204": "sold",
+    "A307": "sold",
+    "A412": "sold",
+    "B215": "sold",
+    "B218": "sold",
+    "B216": "sold",
+    "B219": "sold",
+    "B220": "sold",
+    "B324": "sold",
+    "B325": "sold",
+    "B326": "sold",
+    "B327": "sold",
+    "B328": "sold",
+    "B329": "sold",
+    "B434": "sold",
+    "B435": "sold",
+    "B436": "sold",
+    "B437": "sold",
+    "B438": "sold",
+    "B440": "sold",
+    "C345": "sold",
+    "C346": "sold",
+    "C347": "sold",
+    "C450": "sold",
+    "C451": "sold",
+    "D260": "sold",
+    "D471": "sold"
+  }
 }
