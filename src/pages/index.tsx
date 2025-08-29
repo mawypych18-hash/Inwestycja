@@ -2,32 +2,28 @@ import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Building2, MapPin, Wind, Sparkles } from "lucide-react";
 
-/** Ustaw na true lokalnie, żeby edytować ceny/statusy i eksportować overrides.json.
- *  Na produkcję ustaw false.
- */
+/** Włącz lokalnie do edycji (przyciski, eksport JSON). Na produkcji ustaw false. */
 const ENABLE_ADMIN = false;
 
 /** ===== Typy ===== */
 type Unit = {
   id: string;
-  floor: number;
-  number: string;          // np. "3.B.24" albo "Parter – rzut kondygnacji"
-  rooms: number | null;    // null => rzut kondygnacji (garaż/parter)
+  floor: number;          // nie musi być idealne – wyświetlanie i filtr opierają się na dfFromUnit
+  number: string;         // np. "3.B.24" albo "Parter – rzut kondygnacji"
+  rooms: number | null;   // null => rzut kondygnacji (garaż/parter)
   area: number | null;
   price: number | null;
   isAvailable: boolean;
   hasBalcony: boolean;
   orientation: string;
-  planUrl: string;         // "/uploads/NAZWA.pdf"
+  planUrl: string;        // "/uploads/NAZWA.pdf"
 };
 
 /** ====== TUTAJ WKLEJASZ SWOJE UNITS ====== */
 const UNITS: Unit[] = [
+  // przykłady:
   // { id: "GARAZ_PLAN",  floor: 1, number: "Garaż – rzut kondygnacji", rooms: null, area: null, price: null, isAvailable: true, hasBalcony: false, orientation: "", planUrl: "/uploads/garaz.pdf" },
-  // { id: "PARTER_PLAN", floor: 2, number: "Parter – rzut kondygnacji", rooms: null, area: null, price: null, isAvailable: true, hasBalcony: false, orientation: "", planUrl: "/uploads/parter.pdf" },
-  // { id: "A201", floor: 3, number: "2.A.1", rooms: 2, area: 50.57, price: null, isAvailable: true, hasBalcony: true, orientation: "", planUrl: "/uploads/2.A.1.pdf" },
-  
-  { id: "PARTER_PLAN", floor: 2, number: "Parter – rzut kondygnacji", rooms: null, area: null, price: null, isAvailable: true, hasBalcony: false, orientation: "", planUrl: "/uploads/parter.pdf" },
+   { id: "PARTER_PLAN", floor: 2, number: "Parter – rzut kondygnacji", rooms: null, area: null, price: null, isAvailable: true, hasBalcony: false, orientation: "", planUrl: "/uploads/parter.pdf" },
   // { id: "A201", floor: 3, number: "2.A.1", rooms: 2, area: 50.57, price: null, isAvailable: true, hasBalcony: true, orientation: "", planUrl: "/uploads/2.A.1.pdf" },
 {
     id: "GARAZ",
@@ -131,6 +127,7 @@ const UNITS: Unit[] = [
   { id: "D475", floor: 4, number: "4.D.75", rooms: 2, area: 46.67, price: null, isAvailable: true, hasBalcony: true, orientation: "", planUrl: "/uploads/4.D.75.pdf" },
   { id: "D476", floor: 4, number: "4.D.76", rooms: 4, area: 69.05, price: null, isAvailable: true, hasBalcony: true, orientation: "", planUrl: "/uploads/4.D.76.pdf" },
 
+
 ];
 
 /** ===== Slider ===== */
@@ -139,6 +136,10 @@ const HERO_IMAGES = [
   "/uploads/Siedlce_Inicjatywa_uj02vbezdrzew_001.jpg",
   "/uploads/Siedlce_Inicjatywa_uj01b.jpg",
 ];
+
+/** ===== Specjalne teksty dla planów kondygnacji ===== */
+const GARAGE_PRICE_TEXT = "40 000 zł za miejsce postojowe";
+const PARTER_INFO_TEXT  = "Komórka lokatorska 3 000 zł/m²";
 
 /** ===== Utils ===== */
 const formatPrice = (n: number | null) =>
@@ -169,7 +170,7 @@ function dfFromUnit(u: Unit): number {
     if (n === 2) return 2; // Piętro 1
     if (n === 3) return 3; // Piętro 2
     if (n === 4) return 4; // Piętro 3
-    if (n === 1) return 0; // Garaż (gdyby oznaczano 1.*)
+    if (n === 1) return 0; // ewentualne 1.* → traktuj jako garaż
   }
   // Fallback – floor-1
   return Math.max(0, (u.floor ?? 3) - 1);
@@ -342,19 +343,19 @@ export default function HomePage() {
           <div className="group relative overflow-hidden rounded-2xl border bg-white p-6 shadow-lg ring-1 ring-[#D22121]/20">
             <MapPin className="h-10 w-10 text-[#D22121] mb-4" />
             <h3 className="text-lg font-semibold mb-2">Atrakcyjna lokalizacja</h3>
-            <p className="text-sm text-neutral-600">Blisko centrum i infrastruktury miejskiej – idealne połączenie.</p>
+            <p className="text-sm text-neutral-600">Blisko centrum, terenów zielonych i infrastruktury miejskiej.</p>
             <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-[#D22121] to-transparent opacity-100" />
           </div>
           <div className="group relative overflow-hidden rounded-2xl border bg-white p-6 shadow-lg ring-1 ring-[#D22121]/20">
             <Wind className="h-10 w-10 text-[#D22121] mb-4" />
             <h3 className="text-lg font-semibold mb-2">Klimatyzacja w standardzie</h3>
-            <p className="text-sm text-neutral-600">Mieszkania przygotowane pod montaż klimatyzacji dla komfortu przez cały rok.</p>
+            <p className="text-sm text-neutral-600">Mieszkania przygotowane pod montaż klimatyzacji.</p>
             <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-[#D22121] to-transparent opacity-100" />
           </div>
           <div className="group relative overflow-hidden rounded-2xl border bg-white p-6 shadow-lg ring-1 ring-[#D22121]/20">
             <Sparkles className="h-10 w-10 text-[#D22121] mb-4" />
             <h3 className="text-lg font-semibold mb-2">Nowoczesna architektura</h3>
-            <p className="text-sm text-neutral-600">Elegancki design i funkcjonalne układy zaprojektowane z myślą o mieszkańcach.</p>
+            <p className="text-sm text-neutral-600">Elegancki design i funkcjonalne układy mieszkań.</p>
             <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-[#D22121] to-transparent opacity-100" />
           </div>
         </div>
@@ -532,9 +533,18 @@ export default function HomePage() {
                             )}
                           </div>
                         </div>
-                        {/* Cena – ukryta dla sprzedanych (w edycji możesz modyfikować) */}
+
+                        {/* Cena / specjalne teksty / edycja */}
                         <div className="text-right">
-                          {ENABLE_ADMIN && editMode ? (
+                          {isGaragePlan ? (
+                            <div className="text-base font-semibold text-neutral-800">
+                              {GARAGE_PRICE_TEXT}
+                            </div>
+                          ) : isParterPlan ? (
+                            <div className="text-base font-semibold text-neutral-800">
+                              {PARTER_INFO_TEXT}
+                            </div>
+                          ) : ENABLE_ADMIN && editMode ? (
                             <input
                               type="number"
                               inputMode="numeric"
@@ -554,7 +564,7 @@ export default function HomePage() {
                         </div>
                       </div>
 
-                      {/* Status (kolory: zielony / żółty / czerwony) */}
+                      {/* Status (kolory: zielony / żółty / czerwony) + edycja statusu w trybie admin */}
                       {!isParterPlan && !isGaragePlan && (
                         <div className="mt-2 text-xs">
                           {status === "available" && (
@@ -567,7 +577,6 @@ export default function HomePage() {
                             <span className="inline-block px-2 py-1 rounded border bg-red-50 border-red-200 text-red-700">Sprzedane</span>
                           )}
 
-                          {/* Panel edycji statusu (tylko admin) */}
                           {ENABLE_ADMIN && editMode && (
                             <span className="inline-flex gap-1 ml-2 align-middle">
                               <button onClick={() => setStatusMap((m) => ({ ...m, [u.id]: "available" }))} className="px-2 py-1 text-xs rounded border hover:bg-neutral-50">Dostępne</button>
