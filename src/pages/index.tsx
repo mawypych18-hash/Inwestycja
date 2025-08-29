@@ -2,31 +2,32 @@ import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Building2, MapPin, Wind, Sparkles } from "lucide-react";
 
-/** Ustaw na true lokalnie, aby edytować ceny/statusy i eksportować overrides.json.
- *  Na produkcję daj false.
+/** Ustaw na true lokalnie, żeby edytować ceny/statusy i eksportować overrides.json.
+ *  Na produkcję ustaw false.
  */
-const ENABLE_ADMIN = true;
+const ENABLE_ADMIN = false;
 
 /** ===== Typy ===== */
 type Unit = {
   id: string;
-  floor: number;          // nie musi być idealne – filtr i tak używa dfFromUnit
-  number: string;         // np. "3.B.24" albo "Parter – rzut kondygnacji"
-  rooms: number | null;   // null => rzut kondygnacji (garaż/parter)
+  floor: number;
+  number: string;          // np. "3.B.24" albo "Parter – rzut kondygnacji"
+  rooms: number | null;    // null => rzut kondygnacji (garaż/parter)
   area: number | null;
   price: number | null;
   isAvailable: boolean;
   hasBalcony: boolean;
   orientation: string;
-  planUrl: string;        // "/uploads/NAZWA.pdf"
+  planUrl: string;         // "/uploads/NAZWA.pdf"
 };
 
 /** ====== TUTAJ WKLEJASZ SWOJE UNITS ====== */
 const UNITS: Unit[] = [
-  // przykład wzorca rzutów:
   // { id: "GARAZ_PLAN",  floor: 1, number: "Garaż – rzut kondygnacji", rooms: null, area: null, price: null, isAvailable: true, hasBalcony: false, orientation: "", planUrl: "/uploads/garaz.pdf" },
   // { id: "PARTER_PLAN", floor: 2, number: "Parter – rzut kondygnacji", rooms: null, area: null, price: null, isAvailable: true, hasBalcony: false, orientation: "", planUrl: "/uploads/parter.pdf" },
-  // mieszkania:
+  // { id: "A201", floor: 3, number: "2.A.1", rooms: 2, area: 50.57, price: null, isAvailable: true, hasBalcony: true, orientation: "", planUrl: "/uploads/2.A.1.pdf" },
+  
+  { id: "PARTER_PLAN", floor: 2, number: "Parter – rzut kondygnacji", rooms: null, area: null, price: null, isAvailable: true, hasBalcony: false, orientation: "", planUrl: "/uploads/parter.pdf" },
   // { id: "A201", floor: 3, number: "2.A.1", rooms: 2, area: 50.57, price: null, isAvailable: true, hasBalcony: true, orientation: "", planUrl: "/uploads/2.A.1.pdf" },
 {
     id: "GARAZ",
@@ -141,7 +142,7 @@ const HERO_IMAGES = [
 
 /** ===== Utils ===== */
 const formatPrice = (n: number | null) =>
-  n == null ? "—" : n.toLocaleString("pl-PL", { maximumFractionDigits: 0 }) + " zł";
+  n == null ? "" : n.toLocaleString("pl-PL", { maximumFractionDigits: 0 }) + " zł";
 
 const getStaircase = (unitNumber: string) => {
   const m = unitNumber.match(/\.(\w)\./);
@@ -151,26 +152,16 @@ const getStaircase = (unitNumber: string) => {
 const floorLabel = (df: number) =>
   df === 0 ? "Garaż" : df === 1 ? "Parter" : `Piętro ${df - 1}`;
 
-const chipClasses = (active: boolean) =>
+const chip = (active: boolean) =>
   "px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-neutral-50 " +
   (active ? "ring-2 ring-[#D22121]/40 border-[#D22121]/40 font-medium" : "");
 
 /** Mapowanie na „display floor” po numerze lokalu/ścieżce pliku. */
 function dfFromUnit(u: Unit): number {
   // Garaż
-  if (
-    u.rooms === null &&
-    (/garaż/i.test(u.number) || /\/garaz\.pdf$/i.test(u.planUrl))
-  ) {
-    return 0;
-  }
+  if (u.rooms === null && (/garaż/i.test(u.number) || /\/garaz\.pdf$/i.test(u.planUrl))) return 0;
   // Parter
-  if (
-    u.rooms === null &&
-    (/parter/i.test(u.number) || /\/parter\.pdf$/i.test(u.planUrl))
-  ) {
-    return 1;
-  }
+  if (u.rooms === null && (/parter/i.test(u.number) || /\/parter\.pdf$/i.test(u.planUrl))) return 1;
   // Mieszkania po prefiksie numeru
   const m = (u.number || "").match(/^(\d)\./);
   if (m) {
@@ -178,7 +169,7 @@ function dfFromUnit(u: Unit): number {
     if (n === 2) return 2; // Piętro 1
     if (n === 3) return 3; // Piętro 2
     if (n === 4) return 4; // Piętro 3
-    if (n === 1) return 0; // garaż (gdyby numeracja 1.* istniała)
+    if (n === 1) return 0; // Garaż (gdyby oznaczano 1.*)
   }
   // Fallback – floor-1
   return Math.max(0, (u.floor ?? 3) - 1);
@@ -214,15 +205,9 @@ export default function HomePage() {
     const savedS = localStorage.getItem("statusMap");
     if (savedS) setStatusMap(JSON.parse(savedS));
   }, []);
-  useEffect(() => {
-    localStorage.setItem("priceMap", JSON.stringify(priceMap));
-  }, [priceMap]);
-  useEffect(() => {
-    localStorage.setItem("availMap", JSON.stringify(availMap));
-  }, [availMap]);
-  useEffect(() => {
-    localStorage.setItem("statusMap", JSON.stringify(statusMap));
-  }, [statusMap]);
+  useEffect(() => { localStorage.setItem("priceMap", JSON.stringify(priceMap)); }, [priceMap]);
+  useEffect(() => { localStorage.setItem("availMap", JSON.stringify(availMap)); }, [availMap]);
+  useEffect(() => { localStorage.setItem("statusMap", JSON.stringify(statusMap)); }, [statusMap]);
 
   // wczytaj overrides.json (produkcyjny nadpis)
   useEffect(() => {
@@ -264,17 +249,15 @@ export default function HomePage() {
       if (floorState === "P" && df !== 1) return false;
       if (typeof floorState === "number" && df !== floorState) return false;
 
-      // Od 1. piętra w górę – zwykłe filtry
+      // Od 1. piętra w górę – klasyczne filtry
       if (df >= 2) {
         if (stair && getStaircase(u.number) !== stair) return false;
         if (rooms !== "" && u.rooms !== rooms) return false;
         if (u.area != null && (u.area < minArea || u.area > maxArea)) return false;
       }
 
-      // Tylko dostępne
       if (onlyAvailable && status !== "available") return false;
 
-      // Cena maks (po nadpisaniu priceMap)
       const price = priceMap[u.id] ?? u.price;
       if (!editMode && maxPrice !== "" && price != null && price > maxPrice) return false;
 
@@ -296,17 +279,13 @@ export default function HomePage() {
               className="border rounded-full px-4 py-2 w-72 text-sm bg-white/80"
               placeholder="Szukaj (np. 3.B.24)"
               value={q}
-              onChange={(e) => {
-                setQ(e.target.value);
-                setTouched(true);
-              }}
+              onChange={(e) => { setQ(e.target.value); setTouched(true); }}
             />
             {ENABLE_ADMIN && (
               <>
                 <button
                   onClick={() => setEditMode((s) => !s)}
                   className={`rounded-full px-4 py-2 text-sm border transition ${editMode ? "bg-black text-white" : "bg-white hover:bg-neutral-50"}`}
-                  title="Tryb edycji cen/statusów"
                 >
                   {editMode ? "Zakończ edycję" : "Edytuj"}
                 </button>
@@ -316,15 +295,11 @@ export default function HomePage() {
                     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement("a");
-                    a.href = url;
-                    a.download = "overrides.json";
-                    document.body.appendChild(a);
-                    a.click();
-                    a.remove();
+                    a.href = url; a.download = "overrides.json";
+                    document.body.appendChild(a); a.click(); a.remove();
                     URL.revokeObjectURL(url);
                   }}
                   className="rounded-full px-4 py-2 text-sm border bg-white hover:bg-neutral-50"
-                  title="Zapisz aktualne ceny/statusy do pliku JSON"
                 >
                   Eksportuj JSON
                 </button>
@@ -349,18 +324,8 @@ export default function HomePage() {
               alt="Wizualizacja"
             />
           </AnimatePresence>
-          <button
-            onClick={() => setSlide((s) => (s - 1 + HERO_IMAGES.length) % HERO_IMAGES.length)}
-            className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/90 rounded-full p-2 border"
-          >
-            ‹
-          </button>
-          <button
-            onClick={() => setSlide((s) => (s + 1) % HERO_IMAGES.length)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/90 rounded-full p-2 border"
-          >
-            ›
-          </button>
+          <button onClick={() => setSlide((s) => (s - 1 + HERO_IMAGES.length) % HERO_IMAGES.length)} className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/90 rounded-full p-2 border">‹</button>
+          <button onClick={() => setSlide((s) => (s + 1) % HERO_IMAGES.length)} className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/90 rounded-full p-2 border">›</button>
         </div>
       </section>
 
@@ -377,19 +342,19 @@ export default function HomePage() {
           <div className="group relative overflow-hidden rounded-2xl border bg-white p-6 shadow-lg ring-1 ring-[#D22121]/20">
             <MapPin className="h-10 w-10 text-[#D22121] mb-4" />
             <h3 className="text-lg font-semibold mb-2">Atrakcyjna lokalizacja</h3>
-            <p className="text-sm text-neutral-600">Blisko centrum, terenów zielonych i infrastruktury miejskiej – idealne połączenie.</p>
+            <p className="text-sm text-neutral-600">Blisko centrum i infrastruktury miejskiej – idealne połączenie.</p>
             <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-[#D22121] to-transparent opacity-100" />
           </div>
           <div className="group relative overflow-hidden rounded-2xl border bg-white p-6 shadow-lg ring-1 ring-[#D22121]/20">
             <Wind className="h-10 w-10 text-[#D22121] mb-4" />
             <h3 className="text-lg font-semibold mb-2">Klimatyzacja w standardzie</h3>
-            <p className="text-sm text-neutral-600">Mieszkania przygotowane pod montaż klimatyzacji dla Twojego komfortu przez cały rok.</p>
+            <p className="text-sm text-neutral-600">Mieszkania przygotowane pod montaż klimatyzacji dla komfortu przez cały rok.</p>
             <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-[#D22121] to-transparent opacity-100" />
           </div>
           <div className="group relative overflow-hidden rounded-2xl border bg-white p-6 shadow-lg ring-1 ring-[#D22121]/20">
             <Sparkles className="h-10 w-10 text-[#D22121] mb-4" />
             <h3 className="text-lg font-semibold mb-2">Nowoczesna architektura</h3>
-            <p className="text-sm text-neutral-600">Elegancki design i funkcjonalne układy mieszkań zaprojektowane z myślą o mieszkańcach.</p>
+            <p className="text-sm text-neutral-600">Elegancki design i funkcjonalne układy zaprojektowane z myślą o mieszkańcach.</p>
             <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-[#D22121] to-transparent opacity-100" />
           </div>
         </div>
@@ -399,130 +364,75 @@ export default function HomePage() {
 
       {/* === FILTRY + LISTA === */}
       <main className="mx-auto max-w-7xl px-4 pb-12">
-        {/* PANEL FILTRÓW */}
+        {/* PANEL FILTRÓW – 3 RZĘDY */}
         <section className="relative rounded-2xl border overflow-hidden bg-[radial-gradient(1200px_600px_at_50%_-20%,#fef2f2,#ffffff)]">
           <div className="px-6 py-8 md:px-10 md:py-10">
             <h2 className="text-2xl md:text-3xl font-semibold tracking-tight text-center">
               Wybierz <span className="text-[#D22121]">mieszkanie</span>
             </h2>
-            {requireSelection && (
-              <p className="mt-2 text-neutral-600 text-center">
-                Zacznij od wyboru klatki lub piętra – pokażemy tylko pasujące lokale.
-              </p>
-            )}
 
-            {/* Klatki */}
+            {/* Rząd 1: KLATKI */}
             <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
               {(["A","B","C","D"] as const).map(k => (
-                <button
-                  key={k}
-                  onClick={() => { setStair(k); setTouched(true); }}
-                  className={chipClasses(stair === k)}
-                  aria-pressed={stair === k}
-                >
+                <button key={k} onClick={() => { setStair(k); setTouched(true); }} className={chip(stair === k)} aria-pressed={stair === k}>
                   Klatka {k}
                 </button>
               ))}
-              <button
-                onClick={() => { setStair(""); setTouched(true); }}
-                className={chipClasses(stair === "")}
-                aria-pressed={stair === ""}
-              >
+              <button onClick={() => { setStair(""); setTouched(true); }} className={chip(stair === "")} aria-pressed={stair === ""}>
                 Wszystkie klatki
               </button>
             </div>
 
-            {/* Garaż + Parter + Piętra */}
+            {/* Rząd 2: GARAŻ + PARTER + PIĘTRA */}
             <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-              <button
-                onClick={() => { setFloorState("G"); setTouched(true); }}
-                className={chipClasses(floorState === "G")}
-                aria-pressed={floorState === "G"}
-              >
-                Garaż
-              </button>
-              <button
-                onClick={() => { setFloorState("P"); setTouched(true); }}
-                className={chipClasses(floorState === "P")}
-                aria-pressed={floorState === "P"}
-              >
-                Parter
-              </button>
-              {[2,3,4].map((df) => (
-                <button
-                  key={df}
-                  onClick={() => { setFloorState(df); setTouched(true); }}
-                  className={chipClasses(floorState === df)}
-                  aria-pressed={floorState === df}
-                >
+              <button onClick={() => { setFloorState("G"); setTouched(true); }} className={chip(floorState === "G")} aria-pressed={floorState === "G"}>Garaż</button>
+              <button onClick={() => { setFloorState("P"); setTouched(true); }} className={chip(floorState === "P")} aria-pressed={floorState === "P"}>Parter</button>
+              {[2,3,4].map(df => (
+                <button key={df} onClick={() => { setFloorState(df); setTouched(true); }} className={chip(floorState === df)} aria-pressed={floorState === df}>
                   {floorLabel(df)}
                 </button>
               ))}
-              <button
-                onClick={() => { setFloorState(""); setTouched(true); }}
-                className={chipClasses(floorState === "")}
-                aria-pressed={floorState === ""}
-              >
+              <button onClick={() => { setFloorState(""); setTouched(true); }} className={chip(floorState === "")} aria-pressed={floorState === ""}>
                 Wszystkie piętra
               </button>
             </div>
 
-            {/* Pokoje */}
+            {/* Rząd 3: POKOJE */}
             <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-              {(["", 1, 2, 3, 4] as const).map((r) => (
-                <button
-                  key={r === "" ? "all" : r}
-                  onClick={() => { setRooms(r as any); setTouched(true); }}
-                  className={chipClasses(rooms === r)}
-                  aria-pressed={rooms === r}
-                >
-                  {r === "" ? "Wszystkie pokoje" : `${r} pokoje`}
+              {[1,2,3,4].map(r => (
+                <button key={r} onClick={() => { setRooms(r); setTouched(true); }} className={chip(rooms === r)} aria-pressed={rooms === r}>
+                  {r} pokoje
                 </button>
               ))}
+              <button onClick={() => { setRooms(""); setTouched(true); }} className={chip(rooms === "")} aria-pressed={rooms === ""}>
+                Wszystkie pokoje
+              </button>
             </div>
 
             {/* Dodatkowe szybkie filtry */}
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-sm">
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-sm">
               <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={onlyAvailable}
-                  onChange={(e) => { setOnlyAvailable(e.target.checked); setTouched(true); }}
-                />
+                <input type="checkbox" checked={onlyAvailable} onChange={(e) => { setOnlyAvailable(e.target.checked); setTouched(true); }} />
                 Tylko dostępne
               </label>
 
               <div className="flex items-center gap-1">
                 <span>Max m²:</span>
-                <input
-                  type="number"
-                  className="w-24 border rounded px-2 py-1"
-                  value={maxArea}
-                  onChange={(e) => { setMaxArea(Number(e.target.value || 0)); setTouched(true); }}
-                />
+                <input type="number" className="w-24 border rounded px-2 py-1" value={maxArea}
+                  onChange={(e) => { setMaxArea(Number(e.target.value || 0)); setTouched(true); }} />
               </div>
 
               <div className="flex items-center gap-1">
                 <span>Cena maks.:</span>
-                <input
-                  type="number"
-                  className="w-28 border rounded px-2 py-1"
-                  placeholder="bez limitu"
+                <input type="number" className="w-28 border rounded px-2 py-1" placeholder="bez limitu"
                   value={maxPrice === "" ? "" : String(maxPrice)}
-                  onChange={(e) => { setMaxPrice(e.target.value === "" ? "" : Math.max(0, Math.round(Number(e.target.value)))); setTouched(true); }}
-                />
+                  onChange={(e) => { setMaxPrice(e.target.value === "" ? "" : Math.max(0, Math.round(Number(e.target.value)))); setTouched(true); }} />
               </div>
 
               <button
                 onClick={() => {
-                  setQ("");
-                  setStair("");
-                  setFloorState("");
-                  setRooms("");
-                  setMinArea(25);
-                  setMaxArea(120);
-                  setMaxPrice("");
-                  setOnlyAvailable(false);
+                  setQ(""); setStair(""); setFloorState(""); setRooms("");
+                  setMinArea(25); setMaxArea(120); setMaxPrice(""); setOnlyAvailable(false);
                   setTouched(true);
                 }}
                 className="px-3 py-1.5 rounded-full border bg-white hover:bg-neutral-50"
@@ -532,14 +442,8 @@ export default function HomePage() {
 
               <button
                 onClick={() => {
-                  setQ("");
-                  setStair("");
-                  setFloorState("");
-                  setRooms("");
-                  setMinArea(25);
-                  setMaxArea(120);
-                  setMaxPrice("");
-                  setOnlyAvailable(false);
+                  setQ(""); setStair(""); setFloorState(""); setRooms("");
+                  setMinArea(25); setMaxArea(120); setMaxPrice(""); setOnlyAvailable(false);
                   setTouched(false);
                 }}
                 className="px-3 py-1.5 rounded-full border bg-white hover:bg-neutral-50"
@@ -581,22 +485,24 @@ export default function HomePage() {
                     onKeyDown={(e) => { if (e.key === "Enter") window.open(u.planUrl, "_blank"); }}
                     className={"group rounded-2xl border overflow-hidden bg-white transition " +
                       "hover:-translate-y-0.5 hover:shadow-lg hover:ring-1 hover:ring-[#D22121] hover:border-[#D22121]/40 " +
-                      "focus-within:shadow-lg focus-within:ring-1 focus-within:ring-[#D22121] " +
-                      (isSold ? "opacity-60 grayscale" : "")
-                    }
+                      "focus-within:shadow-lg focus-within:ring-1 focus-within:ring-[#D22121]"}
                   >
-                    {/* Miniatura */}
+                    {/* Miniatura – wyszarzenie tylko obrazka + overlay */}
                     <div className="relative aspect-video bg-neutral-100 overflow-hidden">
                       <img
                         src={jpg}
                         alt={`Miniatura ${u.number}`}
-                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-105"
+                        className={
+                          "absolute inset-0 h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-105 " +
+                          (isSold ? "grayscale" : "")
+                        }
                         onError={(e) => {
                           (e.currentTarget as HTMLImageElement).src =
                             "https://dummyimage.com/900x600/eeeeee/222&text=Brak+miniatury";
                         }}
                       />
-                      <div className="absolute bottom-2 left-2 right-2 flex justify-between items-center">
+                      {isSold && <div className="absolute inset-0 bg-white/55 z-10 pointer-events-none" />}
+                      <div className="absolute bottom-2 left-2 right-2 z-20 flex justify-between items-center">
                         {isGaragePlan ? (
                           <GarageBadge />
                         ) : (
@@ -604,15 +510,14 @@ export default function HomePage() {
                         )}
                         <button
                           onClick={() => window.open(u.planUrl, "_blank")}
-                          title="Otwórz plan w PDF"
-                          className="text-xs px-2 py-1 rounded bg-white/90 backdrop-blur border hover:bg-white"
+                          className={"text-xs px-2 py-1 rounded border " + (isSold ? "bg-white/70 cursor-not-allowed" : "bg-white/90 backdrop-blur hover:bg-white")}
                         >
                           Otwórz PDF
                         </button>
                       </div>
                     </div>
 
-                    {/* Treść */}
+                    {/* Treść karty */}
                     <div className="p-3">
                       <div className="flex items-start justify-between gap-2">
                         <div>
@@ -627,10 +532,9 @@ export default function HomePage() {
                             )}
                           </div>
                         </div>
+                        {/* Cena – ukryta dla sprzedanych (w edycji możesz modyfikować) */}
                         <div className="text-right">
-                          {!ENABLE_ADMIN || !editMode ? (
-                            <div className="text-base font-semibold">{formatPrice(price)}</div>
-                          ) : (
+                          {ENABLE_ADMIN && editMode ? (
                             <input
                               type="number"
                               inputMode="numeric"
@@ -642,52 +546,33 @@ export default function HomePage() {
                               onWheel={(e) => (e.currentTarget as HTMLInputElement).blur()}
                               onKeyDown={(e) => e.stopPropagation()}
                             />
+                          ) : (
+                            status === "sold" ? null : (
+                              <div className="text-base font-semibold">{formatPrice(price)}</div>
+                            )
                           )}
                         </div>
                       </div>
 
-                      {/* Status – ukryty dla rzutów kondygnacji */}
+                      {/* Status (kolory: zielony / żółty / czerwony) */}
                       {!isParterPlan && !isGaragePlan && (
                         <div className="mt-2 text-xs">
                           {status === "available" && (
-                            <span className="inline-block px-2 py-1 rounded border bg-emerald-50 border-emerald-200 text-emerald-700">
-                              Dostępne
-                            </span>
+                            <span className="inline-block px-2 py-1 rounded border bg-emerald-50 border-emerald-200 text-emerald-700">Dostępne</span>
                           )}
                           {status === "reserved" && (
-                            <span className="inline-block px-2 py-1 rounded border bg-amber-50 border-amber-200 text-amber-700">
-                              Zarezerwowane
-                            </span>
+                            <span className="inline-block px-2 py-1 rounded border bg-amber-50 border-amber-200 text-amber-700">Zarezerwowane</span>
                           )}
                           {status === "sold" && (
-                            <span className="inline-block px-2 py-1 rounded border bg-neutral-100 border-neutral-300 text-neutral-700">
-                              Sprzedane
-                            </span>
+                            <span className="inline-block px-2 py-1 rounded border bg-red-50 border-red-200 text-red-700">Sprzedane</span>
                           )}
 
+                          {/* Panel edycji statusu (tylko admin) */}
                           {ENABLE_ADMIN && editMode && (
                             <span className="inline-flex gap-1 ml-2 align-middle">
-                              <button
-                                onClick={() => setStatusMap((m) => ({ ...m, [u.id]: "available" }))}
-                                className="px-2 py-1 text-xs rounded border hover:bg-neutral-50"
-                                title="Oznacz jako dostępne"
-                              >
-                                Dostępne
-                              </button>
-                              <button
-                                onClick={() => setStatusMap((m) => ({ ...m, [u.id]: "reserved" }))}
-                                className="px-2 py-1 text-xs rounded border hover:bg-neutral-50"
-                                title="Oznacz jako zarezerwowane"
-                              >
-                                Zarezerw.
-                              </button>
-                              <button
-                                onClick={() => setStatusMap((m) => ({ ...m, [u.id]: "sold" }))}
-                                className="px-2 py-1 text-xs rounded border hover:bg-neutral-50"
-                                title="Oznacz jako sprzedane"
-                              >
-                                Sprzedane
-                              </button>
+                              <button onClick={() => setStatusMap((m) => ({ ...m, [u.id]: "available" }))} className="px-2 py-1 text-xs rounded border hover:bg-neutral-50">Dostępne</button>
+                              <button onClick={() => setStatusMap((m) => ({ ...m, [u.id]: "reserved" }))} className="px-2 py-1 text-xs rounded border hover:bg-neutral-50">Zarezerw.</button>
+                              <button onClick={() => setStatusMap((m) => ({ ...m, [u.id]: "sold" }))} className="px-2 py-1 text-xs rounded border hover:bg-neutral-50">Sprzedane</button>
                             </span>
                           )}
                         </div>
@@ -701,7 +586,30 @@ export default function HomePage() {
         </section>
       </main>
 
-      <ContactSimple />
+      {/* Kontakt (prosty) */}
+      <section id="contact-section" className="border-t bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-12 grid grid-cols-1 lg:grid-cols-2 gap-10">
+          <div>
+            <div className="text-sm text-neutral-500 mb-2">Kontakt</div>
+            <h2 className="text-4xl font-semibold leading-tight">
+              Zapytaj <span className="text-[#D22121]">o lokal</span>
+            </h2>
+            <p className="mt-4 text-neutral-600 max-w-lg">Zadzwoń, napisz albo odwiedź nas w biurze sprzedaży.</p>
+            <div className="mt-8 space-y-6 text-neutral-800">
+              <div><div className="text-[#D22121] font-medium">Biuro sprzedaży</div><div>ul. Jagiełły 10, Siedlce, Biurowiec Społem</div></div>
+              <div><div className="text-[#D22121] font-medium">Godziny otwarcia</div><div>Poniedziałek – Piątek: 7:00 – 15:00</div></div>
+              <div><div className="text-[#D22121] font-medium">Telefon</div><a href="tel:(025) 6327761" className="text-lg font-semibold hover:underline">(025) 632 77 61</a></div>
+              <div><div className="text-[#D22121] font-medium">E-mail</div><a href="mailto:administracja@spolem.siedlce.pl" className="hover:underline">administracja@spolem.siedlce.pl</a></div>
+            </div>
+          </div>
+          <div className="flex flex-col items-center justify-center">
+            <img src="/uploads/Siedlce_Inicjatywa_uj01b.jpg" alt="Budynek" className="rounded-2xl shadow-md mb-6" />
+            <a href="tel:(025) 6327761" className="inline-flex items-center justify-center rounded-lg bg-[#D22121] px-6 py-3 text-white font-medium hover:bg-[#B51A1A]">
+              Zadzwoń teraz
+            </a>
+          </div>
+        </div>
+      </section>
 
       <footer className="border-t">
         <div className="mx-auto max-w-7xl px-4 py-6 text-sm text-neutral-600">© 2025 Primo Development</div>
@@ -719,7 +627,9 @@ function FloorBadge({ floor, total = 4 }: { floor: number; total?: number }) {
           <div key={f} className={`h-2.5 w-6 rounded ${f === floor ? "bg-black" : "bg-neutral-300"}`} />
         ))}
       </div>
-      <span className="text-xs text-neutral-700">{floorLabel(floor)}</span>
+      <span className="text-xs text-neutral-700">
+        {floorLabel(floor)}
+      </span>
     </div>
   );
 }
@@ -729,56 +639,5 @@ function GarageBadge() {
       <div className="h-2.5 w-10 rounded bg-neutral-800" title="Garaż" />
       <span className="text-xs text-neutral-700">Garaż</span>
     </div>
-  );
-}
-
-/** ===== Sekcja kontakt ===== */
-function ContactSimple() {
-  return (
-    <section id="contact-section" className="border-t bg-white">
-      <div className="mx-auto max-w-7xl px-4 py-12 grid grid-cols-1 lg:grid-cols-2 gap-10">
-        {/* lewa kolumna – dane biura */}
-        <div>
-          <div className="text-sm text-neutral-500 mb-2">Kontakt</div>
-          <h2 className="text-4xl font-semibold leading-tight">
-            Zapytaj <span className="text-[#D22121]">o lokal</span>
-          </h2>
-          <p className="mt-4 text-neutral-600 max-w-lg">
-            Zadzwoń, napisz albo odwiedź nas w biurze sprzedaży.
-          </p>
-
-          <div className="mt-8 space-y-6 text-neutral-800">
-            <div>
-              <div className="text-[#D22121] font-medium">Biuro sprzedaży</div>
-              <div>ul. Jagiełły 10, Siedlce, Biurowiec Społem</div>
-            </div>
-            <div>
-              <div className="text-[#D22121] font-medium">Godziny otwarcia</div>
-              <div>Poniedziałek – Piątek: 7:00 – 15:00</div>
-            </div>
-            <div>
-              <div className="text-[#D22121] font-medium">Telefon</div>
-              <a href="tel:(025) 6327761" className="text-lg font-semibold hover:underline">
-                (025) 632 77 61
-              </a>
-            </div>
-            <div>
-              <div className="text-[#D22121] font-medium">E-mail</div>
-              <a href="mailto:administracja@spolem.siedlce.pl" className="hover:underline">
-                administracja@spolem.siedlce.pl
-              </a>
-            </div>
-          </div>
-        </div>
-
-        {/* prawa kolumna – obrazek + CTA */}
-        <div className="flex flex-col items-center justify-center">
-          <img src="/uploads/Siedlce_Inicjatywa_uj01b.jpg" alt="Budynek" className="rounded-2xl shadow-md mb-6" />
-          <a href="tel:(025) 6327761" className="inline-flex items-center justify-center rounded-lg bg-[#D22121] px-6 py-3 text-white font-medium hover:bg-[#B51A1A]">
-            Zadzwoń teraz
-          </a>
-        </div>
-      </div>
-    </section>
   );
 }
