@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Building2, MapPin, Wind, Sparkles } from "lucide-react";
 
-/** Włącz lokalnie do edycji (przyciski, eksport JSON). Na produkcji ustaw false. */
+/** Włącz lokalnie, aby edytować ceny/statusy i eksportować overrides.json. Na produkcję ustaw false. */
 const ENABLE_ADMIN = false;
 
 /** ===== Typy ===== */
@@ -127,8 +127,8 @@ const UNITS: Unit[] = [
   { id: "D475", floor: 4, number: "4.D.75", rooms: 2, area: 46.67, price: null, isAvailable: true, hasBalcony: true, orientation: "", planUrl: "/uploads/4.D.75.pdf" },
   { id: "D476", floor: 4, number: "4.D.76", rooms: 4, area: 69.05, price: null, isAvailable: true, hasBalcony: true, orientation: "", planUrl: "/uploads/4.D.76.pdf" },
 
-
 ];
+
 
 /** ===== Slider ===== */
 const HERO_IMAGES = [
@@ -170,7 +170,7 @@ function dfFromUnit(u: Unit): number {
     if (n === 2) return 2; // Piętro 1
     if (n === 3) return 3; // Piętro 2
     if (n === 4) return 4; // Piętro 3
-    if (n === 1) return 0; // ewentualne 1.* → traktuj jako garaż
+    if (n === 1) return 0; // ewentualne 1.* → traktuj jako garaż (bezpieczny fallback)
   }
   // Fallback – floor-1
   return Math.max(0, (u.floor ?? 3) - 1);
@@ -483,7 +483,11 @@ export default function HomePage() {
                   <div
                     key={u.id}
                     tabIndex={0}
-                    onKeyDown={(e) => { if (e.key === "Enter") window.open(u.planUrl, "_blank"); }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !isSold) {
+                        window.open(u.planUrl, "_blank");
+                      }
+                    }}
                     className={"group rounded-2xl border overflow-hidden bg-white transition " +
                       "hover:-translate-y-0.5 hover:shadow-lg hover:ring-1 hover:ring-[#D22121] hover:border-[#D22121]/40 " +
                       "focus-within:shadow-lg focus-within:ring-1 focus-within:ring-[#D22121]"}
@@ -509,12 +513,23 @@ export default function HomePage() {
                         ) : (
                           <FloorBadge floor={df} total={4} />
                         )}
-                        <button
-                          onClick={() => window.open(u.planUrl, "_blank")}
-                          className={"text-xs px-2 py-1 rounded border " + (isSold ? "bg-white/70 cursor-not-allowed" : "bg-white/90 backdrop-blur hover:bg-white")}
-                        >
-                          Otwórz PDF
-                        </button>
+                        {isSold ? (
+                          <span
+                            aria-disabled="true"
+                            title="Plan niedostępny – lokal sprzedany"
+                            className="text-xs px-2 py-1 rounded border bg-white/70 cursor-not-allowed select-none"
+                          >
+                            Otwórz PDF
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => window.open(u.planUrl, "_blank")}
+                            title="Otwórz plan w PDF"
+                            className="text-xs px-2 py-1 rounded border bg-white/90 backdrop-blur hover:bg-white"
+                          >
+                            Otwórz PDF
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -564,7 +579,7 @@ export default function HomePage() {
                         </div>
                       </div>
 
-                      {/* Status (kolory: zielony / żółty / czerwony) + edycja statusu w trybie admin */}
+                      {/* Status (zielony / żółty / czerwony) + edycja statusu (admin) */}
                       {!isParterPlan && !isGaragePlan && (
                         <div className="mt-2 text-xs">
                           {status === "available" && (
@@ -621,7 +636,7 @@ export default function HomePage() {
       </section>
 
       <footer className="border-t">
-        <div className="mx-auto max-w-7xl px-4 py-6 text-sm text-neutral-600">© 2025 Primo Development</div>
+        <div className="mx-auto max-w-7xl px-4 py-6 text-sm text-neutral-600">© 2025 Społem PSS Siedlce </div>
       </footer>
     </div>
   );
