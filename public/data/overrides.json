@@ -81,9 +81,9 @@
     "B329": "sold",
     "B434": "sold",
     "B435": "sold",
-    "B436": "reserved",
+    "B436": "sold",
     "B437": "sold",
-    "B438": "reserved",
+    "B438": "available",
     "B440": "sold",
     "C345": "sold",
     "C346": "sold",
@@ -92,7 +92,7 @@
     "C451": "sold",
     "D260": "sold",
     "D471": "reserved",
-    "B217": "available",
+    "B217": "sold",
     "D367": "sold",
     "C452": "sold",
     "C449": "sold",
@@ -101,9 +101,10 @@
     "D473": "sold",
     "D474": "available",
     "B439": "sold",
-    "B433": "reserved",
+    "B433": "sold",
     "D254": "reserved",
     "C243": "sold",
-    "D366": "available"
+    "D366": "available",
+    "A411": "reserved"
   }
 }
