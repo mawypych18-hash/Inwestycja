@@ -8,7 +8,7 @@
     "A410": 0,
     "A308": 0,
     "A203": 390016,
-    "A204": 710892,
+    "A204": 719614,
     "A305": 596726,
     "A306": 632126,
     "A411": 390016,
@@ -65,7 +65,7 @@
   "statusMap": {
     "A410": "sold",
     "A308": "sold",
-    "A204": "reserved",
+    "A204": "available",
     "A307": "sold",
     "A412": "sold",
     "B215": "sold",
@@ -109,10 +109,10 @@
     "A203": "sold",
     "A306": "available",
     "C241": "sold",
-    "D365": "reserved",
-    "B331": "available",
-    "D259": "reserved",
+    "D365": "sold",
+    "B331": "sold",
+    "D259": "available",
     "D364": "reserved",
-    "D475": "reserved"
+    "D475": "sold"
   }
 }

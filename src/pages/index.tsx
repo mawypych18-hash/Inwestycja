@@ -40,7 +40,7 @@ const UNITS: Unit[] = [
   { id: "A201", floor: 2, number: "2.A.1", rooms: 2, area: 50.57, price: 128800, isAvailable: true, hasBalcony: true, orientation: "", planUrl: "/uploads/2.A.1.pdf" },
   { id: "A202", floor: 2, number: "2.A.2", rooms: 2, area: 53.57, price: null, isAvailable: true, hasBalcony: true, orientation: "", planUrl: "/uploads/2.A.2.pdf" },
   { id: "A203", floor: 2, number: "2.A.3", rooms: 1, area: 30.47, price: null, isAvailable: true, hasBalcony: true, orientation: "", planUrl: "/uploads/2.A.3.pdf" },
-  { id: "A204", floor: 2, number: "2.A.4", rooms: 3, area: 72.54, price: null, isAvailable: false, hasBalcony: true, orientation: "", planUrl: "/uploads/2.A.4.pdf" },
+  { id: "A204", floor: 2, number: "2.A.4", rooms: 3, area: 73.43, price: null, isAvailable: false, hasBalcony: true, orientation: "", planUrl: "/uploads/2.A.4.pdf" },
   { id: "A305", floor: 3, number: "3.A.5", rooms: 2, area: 50.57, price: null, isAvailable: true, hasBalcony: true, orientation: "", planUrl: "/uploads/3.A.5.pdf" },
   { id: "A306", floor: 3, number: "3.A.6", rooms: 2, area: 53.57, price: null, isAvailable: true, hasBalcony: true, orientation: "", planUrl: "/uploads/3.A.6.pdf" },
   { id: "A307", floor: 3, number: "3.A.7", rooms: 1, area: 30.47, price: null, isAvailable: false, hasBalcony: true, orientation: "", planUrl: "/uploads/3.A.7.pdf" },
