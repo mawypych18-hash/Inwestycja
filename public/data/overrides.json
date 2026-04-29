@@ -83,7 +83,7 @@
     "B435": "sold",
     "B436": "sold",
     "B437": "sold",
-    "B438": "reserved",
+    "B438": "sold",
     "B440": "sold",
     "C345": "sold",
     "C346": "sold",
@@ -110,9 +110,9 @@
     "A306": "available",
     "C241": "sold",
     "D365": "sold",
-    "B331": "available",
+    "B331": "sold",
     "D259": "available",
-    "D364": "reserved",
+    "D364": "sold",
     "D475": "sold"
   }
 }
