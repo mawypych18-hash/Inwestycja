@@ -65,7 +65,7 @@
   "statusMap": {
     "A410": "sold",
     "A308": "sold",
-    "A204": "reserved",
+    "A204": "sold",
     "A307": "sold",
     "A412": "sold",
     "B215": "sold",
@@ -75,7 +75,7 @@
     "B220": "sold",
     "B324": "sold",
     "B325": "sold",
-    "B326": "reserved",
+    "B326": "sold",
     "B327": "sold",
     "B328": "sold",
     "B329": "sold",
@@ -114,10 +114,11 @@
     "D259": "reserved",
     "D364": "sold",
     "D475": "sold",
-    "A305": "reserved",
+    "A305": "sold",
     "C242": "reserved",
     "B222": "reserved",
-    "D476": "reserved",
-    "B221": "reserved"
+    "D476": "sold",
+    "B221": "sold",
+    "A202": "reserved"
   }
 }

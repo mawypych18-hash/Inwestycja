@@ -3,7 +3,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Building2, MapPin, Wind, Sparkles } from "lucide-react";
 
 /** Włącz lokalnie, aby edytować ceny/statusy i eksportować overrides.json. Na produkcję ustaw false. */
-const ENABLE_ADMIN =false
+const ENABLE_ADMIN = false
+
+
 
 
 /** ===== Typy ===== */
